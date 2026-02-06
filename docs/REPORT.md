@@ -1,6 +1,6 @@
 # Report: Rasdaman MCP Integration
 
-## 1. Introduction to Micro-CLI Programs (MCPs)
+## 1. Introduction to Model Context Protocol (MCPs)
 
 Micro-CLI Programs (MCPs) serve as a powerful bridge, enabling Large Language Models (LLMs) to interact with external tools and services. This project utilizes the `fastmcp` framework to expose Rasdaman functionalities as a set of tools that an LLM can call to answer user queries in a natural language context.
 
