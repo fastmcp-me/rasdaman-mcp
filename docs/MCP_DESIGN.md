@@ -52,17 +52,16 @@ In this mode, the client communicates with the server over standard input/output
 ### 2.2. Core Components
 
 - **FastMCP (`mcp`):** The core framework used to define and expose the tools. It is built on top of FastAPI.
-- **Tool Functions (`rasdaman_actions.py`):** These are the Python functions that contain the actual logic for interacting with the Rasdaman WCS/WCPS endpoints.
-- **Main Application (`main.py`):** This script initializes the FastMCP application, handles command-line arguments for transport selection, and decorates the tool functions.
+- **`RasdamanActions` Class (`rasdaman_actions.py`):** This class encapsulates all interaction with the Rasdaman WCS/WCPS endpoints. It is initialized with the server URL and credentials, and its methods contain the logic for listing coverages, describing them, and executing queries.
+- **Main Application (`main.py`):** This script initializes the FastMCP application. It handles command-line arguments for transport selection, Rasdaman URL, username, and password. It then instantiates the `RasdamanActions` class and decorates its methods to expose them as tools.
 
 ## 3. Defined Tools
 
-The following functions from `rasdaman_actions.py` are exposed as tools. Note that when calling them via the `tools/call` RPC method, the arguments are passed in a nested `arguments` object.
+The following methods from the `RasdamanActions` class are exposed as tools. Note that when calling them via the `tools/call` RPC method, the arguments are passed in a nested `arguments` object.
 
 - **`list_coverages()`**: Lists all available datacubes.
 - **`describe_coverage(coverage_id: str)`**: Retrieves metadata for a specific datacube.
 - **`execute_wcps_query(wcps_query: str)`**: Executes a raw WCPS query.
-- **`calculate_ndvi(coverage_id: str, time_slice: str)`**: Calculates the NDVI for a given Sentinel-2 coverage and time.
 
 ## 4. Testing the Standalone Server
 

@@ -38,15 +38,33 @@ This project requires Python 3.14. It is highly recommended to use a virtual env
 
 ## Usage
 
-This project can be run in two primary modes, controlled by the `--transport` command-line argument.
+This project can be run in two primary modes, controlled by the `--transport` command-line argument. The connection to the Rasdaman server can be configured via command-line arguments, which override any environment variables.
+
+### Configuration Arguments
+-   `--rasdaman-url`: Sets the URL for the Rasdaman server. Defaults to the `RASDAMAN_URL` environment variable or `http://localhost:8080/rasdaman/ows`.
+-   `--username`: Sets the username for authentication. Defaults to the `RASDAMAN_USERNAME` environment variable or `rasguest`.
+-   `--password`: Sets the password for authentication. Defaults to the `RASDAMAN_PASSWORD` environment variable or `rasguest`.
+
+#### Environment Variables
+
+Environment variables for configuring the connection to the rasdaman instance:
+
+| Variable | Description | Default |
+| :--- | :--- | :--- |
+| `RASDAMAN_URL` | Base URL of the rasdaman service | `http://localhost:8080/rasdaman/ows` |
+| `RASDAMAN_USERNAME` | Username for authentication | `rasguest` |
+| `RASDAMAN_PASSWORD` | Password for authentication | `rasguest` |
 
 ### `stdio` Mode (Default)
 
-This mode is used for direct integration with clients like `gemini-cli` that manage the server process. It uses standard input/output for communication.
+This mode is used for direct integration with clients like `gemini-cli` (an example) that manage the server process. It uses standard input/output for communication.
+
+To add an MCP tool to your client, use the following general syntax:
+`gemini mcp add [mcp-name] [mcp-execution-command]`
 
 1.  **Add the tool to your client:**
     ```bash
-    gemini mcp add src/main.py
+    gemini mcp add rasdaman-mcp "python3 src/main.py --username myuser --password mypass"
     ```
 2.  **Use the tools via the client:** The LLM can now use the functions (`list_coverages`, `describe_coverage`, etc.) as tools.
 
@@ -56,7 +74,7 @@ This mode runs a persistent web server, which is useful for development, testing
 
 1.  **Run the server:**
     ```bash
-    python3 src/main.py --transport http --port 8000
+    python3 src/main.py --transport http --port 8000 --rasdaman-url "http://my-rasdaman:8080/rasdaman/ows"
     ```
     The server will now be listening on `http://127.0.0.1:8000`.
 

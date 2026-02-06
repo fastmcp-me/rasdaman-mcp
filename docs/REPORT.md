@@ -14,11 +14,11 @@ The MCP server is designed with a flexible dual-mode architecture:
 
 ## 2. Integrating MCPs with Rasdaman
 
-The integration between the MCP framework and Rasdaman is achieved through a clean separation of concerns.
+The integration between the MCP framework and Rasdaman is achieved through a clean separation of concerns and a dependency injection pattern.
 
-*   **`rasdaman_actions.py`:** This module acts as an abstraction layer. It contains the core logic for connecting to Rasdaman's Web Coverage Service (WCS) and Web Coverage Processing Service (WCPS) endpoints. It handles the specifics of forming queries and processing results, encapsulating the complexity of direct database interaction.
+*   **`rasdaman_actions.py`:** This module has been refactored to contain the `RasdamanActions` class, which acts as an abstraction layer. It is initialized with the Rasdaman server URL and credentials. Its methods encapsulate the core logic for connecting to Rasdaman's Web Coverage Service (WCS) and Web Coverage Processing Service (WCPS) endpoints, handling the specifics of forming queries and processing results.
 
-*   **`main.py`:** This script serves as the entry point for the MCP server. It uses the `fastmcp` framework to take the functions defined in `rasdaman_actions.py` and expose them as callable tools under the MCP protocol. This allows the LLM to invoke high-level functions without needing to know the underlying implementation details of the WCS/WCPS protocols.
+*   **`main.py`:** This script serves as the entry point for the MCP server. It parses command-line arguments to get the Rasdaman URL and credentials, falling back to environment variables and then defaults if not provided. It instantiates the `RasdamanActions` class and uses the `fastmcp` framework to expose its methods as callable tools.
 
 ## 3. Current Project Status
 
@@ -31,7 +31,6 @@ The following tools are currently available for an LLM to use:
 *   **`list_coverages`:** Lists all available datacubes in the Rasdaman database.
 *   **`describe_coverage`:** Retrieves structural metadata (e.g., bounding box, time steps) for a specific datacube.
 *   **`execute_wcps_query`:** Executes a raw, user-provided WCPS query string.
-*   **`calculate_ndvi`:** A specialized tool to calculate the Normalized Difference Vegetation Index (NDVI) for a Sentinel-2 coverage.
 
 ### 3.2. Documentation
 

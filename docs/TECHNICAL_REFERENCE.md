@@ -1,21 +1,29 @@
 # Module: `rasdaman_actions.py` Technical Reference
 
-This document provides a detailed technical reference for the `rasdaman_actions.py` module. This module contains functions that abstract away direct interaction with the Rasdaman OWS (Open Geospatial Consortium Web Services) endpoints, providing a Python interface for the Web Coverage Service (WCS) and Web Coverage Processing Service (WCPS).
+This document provides a detailed technical reference for the `rasdaman_actions.py` module. This module has been refactored into a class-based structure to better manage configuration and state.
 
-## Configuration
+## `RasdamanActions` Class
 
--   `RAS_HOST`: The IP address of the Rasdaman server. Configurable via the `RAS_IP` environment variable, defaults to `192.168.122.179`.
--   `RAS_BASE`: The base URL for the Rasdaman OWS endpoint, constructed dynamically using `RAS_HOST`.
+This is the central class of the module, encapsulating all functionality for interacting with a Rasdaman server.
 
-## Functions
+### Initialization
+
+An instance of the class is created with the following parameters:
+
+-   `__init__(self, rasdaman_url, username, password)`
+    -   `rasdaman_url` (str): The full URL to the Rasdaman OWS endpoint (e.g., `http://localhost:8080/rasdaman/ows`).
+    -   `username` (str): The username for authenticating with the Rasdaman server.
+    -   `password` (str): The password for authentication.
+
+### Methods
 
 #### `get_wcs_connection()`
-Helper function to establish a connection to the Rasdaman WCS endpoint.
+Helper method to establish a connection to the Rasdaman WCS endpoint using the credentials provided during class initialization.
 -   **Returns**: An instance of `wcs.service.WebCoverageService`.
 -   **Raises**: `RuntimeError` if the WCS connection fails.
 
 #### `get_wcps_connection()`
-Helper function to establish a connection to the Rasdaman WCPS endpoint.
+Helper method to establish a connection to the Rasdaman WCPS endpoint using the credentials provided during class initialization.
 -   **Returns**: An instance of `wcps.service.Service`.
 -   **Raises**: `RuntimeError` if the WCPS connection fails.
 
@@ -27,29 +35,27 @@ Lists all available datacubes (coverages) in the Rasdaman database.
 Retrieves structural metadata for a specific datacube.
 -   **Parameters**:
     -   `coverage_id` (str): The ID of the coverage to describe.
--   **Returns**: A `CoverageMetadata` object containing information such as:
-    -   `id`: The coverage ID.
-    -   `bbox_wgs84`: Bounding box coordinates in WGS84 (longitude, latitude).
-    -   `timesteps`: List of available time steps for the coverage.
-    -   `native_crs`: The native Coordinate Reference System of the coverage.
-    -   `grid_axes`: List of grid axes names.
+-   **Returns**: A `CoverageMetadata` object.
 -   **Raises**: `ValueError` if the specified `coverage_id` is not found.
 
 #### `execute_wcps_query_action(wcps_query: str)`
-Executes a raw Web Coverage Processing Service (WCPS) query against the Rasdaman database.
-The `wcps_query` string is explicitly URL-encoded before execution to ensure proper handling of special characters.
+Executes a raw Web Coverage Processing Service (WCPS) query.
 -   **Parameters**:
     -   `wcps_query` (str): The WCPS query string to execute.
--   **Returns**: A string. If the result is decodable as UTF-8, the decoded string is returned. Otherwise, a message indicating binary data and its size is returned (e.g., "Query executed successfully. Result is binary data (12345 bytes).").
+-   **Returns**: A string containing the query result or an error message.
 
 #### `calculate_ndvi_action(coverage_id: str, time_slice: str)`
-Calculates the Normalized Difference Vegetation Index (NDVI) for a Sentinel-2 coverage.
-This function constructs and executes a WCPS query to compute NDVI.
+A specialized method to calculate the Normalized Difference Vegetation Index (NDVI).
 -   **Parameters**:
-    -   `coverage_id` (str): The ID of the Sentinel-2 coverage (e.g., `s2_10m`).
-    -   `time_slice` (str): The specific time slice for which to calculate NDVI. Only the `YYYY-MM-DD` part is extracted from this string for use in the `ansi()` WCPS function.
--   **Returns**: A string representing the result of the `execute_wcps_query_action`, which will typically be a message indicating binary data (the PNG image of NDVI) and its size upon successful execution.
+    -   `coverage_id` (str): The ID of the Sentinel-2 coverage.
+    -   `time_slice` (str): The date for the calculation (e.g., "2025-06-12").
+-   **Returns**: The result from `execute_wcps_query_action`, typically a message indicating binary image data.
 -   **Raises**: `ValueError` if `time_slice` is not provided.
 
 ## `CoverageMetadata` Pydantic Model
-A Pydantic BaseModel defining the structure of the metadata returned by `describe_coverage_action`.
+A Pydantic BaseModel defining the structure of the metadata returned by `describe_coverage_action`. This model is defined within the `rasdaman_actions.py` module.
+-   `id`: The coverage ID.
+-   `bbox_wgs84`: Bounding box coordinates.
+-   `timesteps`: List of available time steps.
+-   `native_crs`: The native Coordinate Reference System.
+-   `grid_axes`: List of grid axes names.
