@@ -4,9 +4,9 @@ This project provides a set of Model Context Protocol (MCP) tools for interactin
 
 ## Table of Contents
 
--   [Installation](#installation)
--   [Usage](#usage)
--   [Documentation](#documentation)
+-   [[#installation | Installation]]
+-   [[#usage | Usage]]
+-   [[#documentation | Documentation]]
 
 ## Installation
 
@@ -29,7 +29,7 @@ This project requires Python 3.14. It is highly recommended to use a virtual env
     pip install fastmcp wcs wcps pydantic typer uvicorn
     ```
 
-    _Note: wcs and wcps are specific client libraries for WCS and WCPS interactions, often found in geospatial contexts. Ensure these are the correct packages for your Rasdaman setup._
+    //Note: wcs and wcps are specific client libraries for WCS and WCPS interactions, often found in geospatial contexts. Ensure these are the correct packages for your Rasdaman setup.//
 
 4.  **Deactivate the virtual environment** when you're done:
     ```bash
@@ -50,7 +50,6 @@ This project can be run in two primary modes, controlled by the `--transport` co
 Environment variables for configuring the connection to the rasdaman instance:
 
 | Variable | Description | Default |
-| :--- | :--- | :--- |
 | `RASDAMAN_URL` | Base URL of the rasdaman service | `http://localhost:8080/rasdaman/ows` |
 | `RASDAMAN_USERNAME` | Username for authentication | `rasguest` |
 | `RASDAMAN_PASSWORD` | Password for authentication | `rasguest` |
@@ -64,8 +63,10 @@ To add an MCP tool to your client, use the following general syntax:
 
 1.  **Add the tool to your client:**
     ```bash
-    gemini mcp add rasdaman-mcp "python3 src/main.py --username myuser --password mypass"
+    gemini mcp add rasdaman-mcp "<path-to-your-python-env> <path-to-your-main.py> --username myuser --password mypass"
     ```
+    //Note: You must use absolute paths to your python environment (e.g., `/path/to/your/project/venv/bin/python`) and the `main.py` script (e.g., `/path/to/your/project/src/main.py`).//
+
 2.  **Use the tools via the client:** The LLM can now use the functions (`list_coverages`, `describe_coverage`, etc.) as tools.
 
 ### Standalone `http` Mode
@@ -74,8 +75,10 @@ This mode runs a persistent web server, which is useful for development, testing
 
 1.  **Run the server:**
     ```bash
-    python3 src/main.py --transport http --port 8000 --rasdaman-url "http://my-rasdaman:8080/rasdaman/ows"
+    <path-to-your-python-env> <path-to-your-main.py> --transport http --port 8000 --rasdaman-url "http://my-rasdaman:8080/rasdaman/ows"
     ```
+    //Note: You must use absolute paths to your python environment and the `main.py` script.//
+
     The server will now be listening on `http://127.0.0.1:8000`.
 
 2.  **Interact with the server:** You can now send JSON-RPC requests to the server to call the tools.
@@ -84,10 +87,10 @@ This mode runs a persistent web server, which is useful for development, testing
 
 The `http` server uses a stateful, stream-based protocol that requires a specific 3-step process to interact with it using a tool like `curl`.
 
-For detailed instructions and `curl` examples on how to test the standalone server, please refer to the **[MCP Server Design and Testing Document](docs/MCP_DESIGN.md)**.
+For detailed instructions and `curl` examples on how to test the standalone server, please refer to the **[[docs/MCP_DESIGN.md | MCP Server Design and Testing Document]]**.
 
 ## Documentation
 
 Comprehensive documentation for the `rasdaman_actions.py` module, its functions, and their integration into the MCP framework can be found here:
 
--   [Rasdaman MCP Integration Documentation](docs/TECHNICAL_REFERENCE.md)
+-   [[docs/TECHNICAL_REFERENCE.md | Rasdaman MCP Integration Documentation]]

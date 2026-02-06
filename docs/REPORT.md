@@ -44,13 +44,6 @@ Comprehensive documentation has been created to support the project:
 
 To build upon the current foundation, the following enhancements are proposed to make the toolset more powerful, robust, and safe for LLM interaction.
 
-### 4.1. Higher-Level Abstraction for Complex Queries
-
-While the `execute_wcps_query` tool is flexible, it requires the LLM to construct complex and potentially error-prone WCPS queries. The next step is to create higher-level, task-oriented tools that encapsulate common analytical workflows.
-
-*   **Example:** Instead of asking an LLM to write a query for monthly NDVI, we can provide a tool like `get_monthly_ndvi_average(year: int, coverage_id: str)`.
-*   **Benefit:** This reduces the cognitive load on the LLM, minimizes errors, and leads to more reliable and efficient execution of common tasks.
-
 ### 4.2. Enhanced Binary Data Handling
 
 Rasdaman frequently returns binary data, such as PNG images or other file formats. The current implementation only identifies binary responses with a text message. This functionality should be enhanced to allow the LLM to directly retrieve and utilize this data.
