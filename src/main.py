@@ -1,10 +1,13 @@
 from fastmcp import FastMCP
-from rasdaman_actions import RasdamanActions, CoverageMetadata
+from rasdaman_actions import RasdamanActions
 import os
 import argparse
+from typing import Any
 
-mcp = FastMCP(name="Rasdaman MCP Server",
-              instructions="This server provides access to a rasdaman instance: list coverages, get coverage details, and execute a WCPS query.")
+mcp = FastMCP(
+    name="Rasdaman MCP Server",
+    instructions="This server provides access to a rasdaman instance: list coverages, get coverage details, and execute a WCPS query.",
+)
 
 # Determine credentials
 parser = argparse.ArgumentParser(description="Rasdaman MCP Server")
@@ -64,7 +67,7 @@ def list_coverages() -> list[str]:
 
 
 @mcp.tool()
-def describe_coverage(coverage_id: str) -> CoverageMetadata:
+def describe_coverage(coverage_id: str) -> str:
     """
     Retrieves structural metadata for a specific datacube.
     Returns the bounding box (WGS84), time steps, and grid axes.
@@ -73,11 +76,11 @@ def describe_coverage(coverage_id: str) -> CoverageMetadata:
 
 
 @mcp.tool()
-def execute_wcps_query(wcps_query: str) -> str:
+def execute_wcps_query(wcps_query: str) -> Any:
     """
     Executes a raw Web Coverage Processing Service (WCPS) query against the database.
     Use this for custom band math, aggregation, or filtering.
-    If the query returns binary data (e.g., an image or NetCDF file), 
+    If the query returns binary data (e.g., an image or NetCDF file),
     the tool will save it to a temporary file and return the path.
 
     Example:

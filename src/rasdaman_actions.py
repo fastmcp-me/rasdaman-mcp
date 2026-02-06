@@ -1,12 +1,13 @@
 from wcs.service import WebCoverageService
 from wcps.service import Service as WCPS_Service
-from typing import List, Tuple
+from typing import List, Tuple, Any
 import os
 import logging
-import urllib.parse
 import tempfile
 import mimetypes
 import re
+import sys
+import subprocess
 
 # Configure Logging
 logging.basicConfig(level=logging.INFO, stream=None)
@@ -60,82 +61,87 @@ class RasdamanActions:
         full_cov = wcs.list_full_info(coverage_id)
         return str(full_cov)
 
-    def execute_wcps_query_action(self, wcps_query: str) -> str:
+    def execute_wcps_query_action(self, wcps_query: str) -> Any:
         """
-        Executes a raw Web Coverage Processing Service (WCPS) query against the database.
-        Streams the response to handle large datasets efficiently.
+        Executes a Web Coverage Processing Service (WCPS) query against the database
+        using the wcps-python-client library.
         """
-        logger.info(f"Executing WCPS query via direct URL request: {wcps_query}")
+        logger.info(f"Executing WCPS query: {wcps_query}")
+
+        wcps_service = self.get_wcps_connection()
+        output_format = None
+
+        match = re.search(
+            r'encode\s*\((?:.*,\s*)?["\']([^"\']+)["\']\s*\)', wcps_query, re.IGNORECASE
+        )
+        if match:
+            output_format = match.group(1).lower()
+
+        binary_formats = [
+            "png",
+            "jpeg",
+            "gif",
+            "tiff",
+            "image/png",
+            "image/jpeg",
+            "image/gif",
+            "image/tiff",
+        ]
+
+        original_stdout = sys.stdout
+        original_stderr = sys.stderr
 
         try:
-            # Manually construct the GET request URL
-            params = {
-                "service": "WCS",
-                "version": "2.0.1",
-                "request": "ProcessCoverages",
-                "query": wcps_query,
-            }
-            encoded_params = urllib.parse.urlencode(params)
-
-            base_url = self.rasdaman_url.rstrip("?&")
-            request_url = f"{base_url}?{encoded_params}"
-
-            logger.info(f"Request URL: {request_url}")
-
-            with urllib.request.urlopen(request_url, timeout=60) as response:
-                info = response.info()
-                content_type = info.get("Content-Type", "application/octet-stream")
-                logger.info(f"Response Content-Type: {content_type}")
-
-                # Check if content is text-based
-                if (
-                    "text" in content_type
-                    or "xml" in content_type
-                    or "json" in content_type
-                ):
-                    logger.info("Handling as text response.")
-                    result = response.read().decode("utf-8")
-                    logger.info(
-                        f"Returning text result: {result[:100]}"
-                    )  # Log first 100 chars
-                    return result
-
-                logger.info("Handling as binary response.")
-                suffix = mimetypes.guess_extension(content_type) or ".dat"
-
-                match = re.search(
-                    r'encode\s*\([^,]+,\s*["\'](\w+)["\']\s*\)',
-                    wcps_query,
-                    re.IGNORECASE,
+            if output_format and any(f in output_format for f in binary_formats):
+                logger.info(
+                    f"Detected binary output format '{output_format}'. Using download()."
                 )
-                if match:
-                    format_from_query = match.group(1).lower()
-                    if not format_from_query.startswith("."):
-                        format_from_query = "." + format_from_query
-                    suffix = format_from_query
-
-                logger.info(f"Using file suffix: {suffix}")
+                suffix = mimetypes.guess_extension(output_format) or ".dat"
+                if "." not in suffix:
+                    suffix = "." + suffix
 
                 with tempfile.NamedTemporaryFile(
                     delete=False, suffix=suffix, mode="wb"
                 ) as tmpfile:
-                    chunk_size = 8192
-                    while True:
-                        chunk = response.read(chunk_size)
-                        if not chunk:
-                            break
-                        tmpfile.write(chunk)
-
                     file_path = tmpfile.name
-                    logger.info(f"Streamed binary data to temporary file: {file_path}")
-                    result_str = f"Binary data saved to: {file_path}"
-                    logger.info(f"Returning result: {result_str}")
-                    return result_str
 
-        except urllib.error.HTTPError as e:
-            error_content = e.read().decode("utf-8") if e.readable() else e.reason
-            logger.error(f"HTTP Error {e.code}: {error_content}")
-            return f"WCPS Query Failed with HTTP Error {e.code}: {error_content}"
+                sys.stdout = open(os.devnull, "w")
+                sys.stderr = open(os.devnull, "w")
+
+                try:
+                    wcps_service.download(wcps_query, output_file=file_path)
+
+                    subprocess.Popen(["xdg-open", file_path])
+
+                finally:
+                    sys.stdout.close()
+                    sys.stderr.close()
+                    sys.stdout = original_stdout
+                    sys.stderr = original_stderr
+
+                result_obj = {"file_path": file_path}
+                logger.info(f"Returning result: {result_obj}")
+                return result_obj
+            else:
+                logger.info(
+                    f"Detected text output format '{output_format or 'none specified'}'. Using execute()."
+                )
+                sys.stdout = open(os.devnull, "w")
+                sys.stderr = open(os.devnull, "w")
+                try:
+                    result = wcps_service.execute(wcps_query)
+                finally:
+                    sys.stdout.close()
+                    sys.stderr.close()
+                    sys.stdout = original_stdout
+                    sys.stderr = original_stderr
+
+                text_result = result.value
+                logger.info(f"Returning text result: {text_result[:100]}...")
+                return text_result
+
         except Exception as e:
+            sys.stdout = original_stdout
+            sys.stderr = original_stderr
             logger.exception("WCPS Query Failed")
             return f"WCPS Query Failed: {str(e)}"
