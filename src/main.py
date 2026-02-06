@@ -70,6 +70,8 @@ def execute_wcps_query(wcps_query: str) -> str:
     """
     Executes a raw Web Coverage Processing Service (WCPS) query against the database.
     Use this for custom band math, aggregation, or filtering.
+    If the query returns binary data (e.g., an image or NetCDF file), 
+    the tool will save it to a temporary file and return the path.
 
     Example:
     for c in (Sentinel2_10m) return encode(c[ansi("2025-06-12")], "csv")

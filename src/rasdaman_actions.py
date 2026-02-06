@@ -5,6 +5,9 @@ from typing import List, Tuple
 import os
 import logging
 import urllib.parse
+import tempfile
+import mimetypes
+import re
 
 # Configure Logging
 logging.basicConfig(level=logging.INFO, stream=None)
@@ -115,20 +118,79 @@ class RasdamanActions:
     def execute_wcps_query_action(self, wcps_query: str) -> str:
         """
         Executes a raw Web Coverage Processing Service (WCPS) query against the database.
+        Streams the response to handle large datasets efficiently.
         """
-        logger.info(f"Executing WCPS: {wcps_query}")
-        wcps_service = self.get_wcps_connection()
-        try:
-            # Explicitly URL-encode the WCPS query string
-            encoded_wcps_query = urllib.parse.quote(wcps_query.encode("utf-8"))
-            result = wcps_service.execute(encoded_wcps_query)
-            try:
-                # Try to decode as text
-                decoded_value = result.value.decode("utf-8")
-                return decoded_value
-            except UnicodeDecodeError:
-                # If decoding fails, assume it's binary data (image, netcdf, etc.)
-                return f"Query executed successfully. Result is binary data ({len(result.value)} bytes)."
+        logger.info(f"Executing WCPS query via direct URL request: {wcps_query}")
 
+        try:
+            # Manually construct the GET request URL
+            params = {
+                "service": "WCS",
+                "version": "2.0.1",
+                "request": "ProcessCoverages",
+                "query": wcps_query,
+            }
+            encoded_params = urllib.parse.urlencode(params)
+
+            base_url = self.rasdaman_url.rstrip("?&")
+            request_url = f"{base_url}?{encoded_params}"
+
+            logger.info(f"Request URL: {request_url}")
+
+            with urllib.request.urlopen(request_url, timeout=60) as response:
+                info = response.info()
+                content_type = info.get("Content-Type", "application/octet-stream")
+                logger.info(f"Response Content-Type: {content_type}")
+
+                # Check if content is text-based
+                if (
+                    "text" in content_type
+                    or "xml" in content_type
+                    or "json" in content_type
+                ):
+                    logger.info("Handling as text response.")
+                    result = response.read().decode("utf-8")
+                    logger.info(
+                        f"Returning text result: {result[:100]}"
+                    )  # Log first 100 chars
+                    return result
+
+                logger.info("Handling as binary response.")
+                suffix = mimetypes.guess_extension(content_type) or ".dat"
+
+                match = re.search(
+                    r'encode\s*\([^,]+,\s*["\'](\w+)["\']\s*\)',
+                    wcps_query,
+                    re.IGNORECASE,
+                )
+                if match:
+                    format_from_query = match.group(1).lower()
+                    if not format_from_query.startswith("."):
+                        format_from_query = "." + format_from_query
+                    suffix = format_from_query
+
+                logger.info(f"Using file suffix: {suffix}")
+
+                with tempfile.NamedTemporaryFile(
+                    delete=False, suffix=suffix, mode="wb"
+                ) as tmpfile:
+                    chunk_size = 8192
+                    while True:
+                        chunk = response.read(chunk_size)
+                        if not chunk:
+                            break
+                        tmpfile.write(chunk)
+
+                    file_path = tmpfile.name
+                    logger.info(f"Streamed binary data to temporary file: {file_path}")
+                    result_str = f"Binary data saved to: {file_path}"
+                    logger.info(f"Returning result: {result_str}")
+                    return result_str
+
+        except urllib.error.HTTPError as e:
+            error_content = e.read().decode("utf-8") if e.readable() else e.reason
+            logger.error(f"HTTP Error {e.code}: {error_content}")
+            return f"WCPS Query Failed with HTTP Error {e.code}: {error_content}"
         except Exception as e:
+            logger.exception("WCPS Query Failed")
             return f"WCPS Query Failed: {str(e)}"

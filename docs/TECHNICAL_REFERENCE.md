@@ -39,10 +39,14 @@ Retrieves structural metadata for a specific datacube.
 -   **Raises**: `ValueError` if the specified `coverage_id` is not found.
 
 #### `execute_wcps_query_action(wcps_query: str)`
-Executes a raw Web Coverage Processing Service (WCPS) query.
+Executes a raw Web Coverage Processing Service (WCPS) query against the database. This method is capable of handling both text and binary responses.
+
 -   **Parameters**:
     -   `wcps_query` (str): The WCPS query string to execute.
--   **Returns**: A string containing the query result or an error message.
+-   **Returns**: 
+    -   If the query result is text-based (e.g., CSV, JSON, XML), the raw text is returned as a string.
+    -   If the query result is binary data (e.g., an image like PNG, JPEG, or a NetCDF file), the data is streamed to a temporary file on the local filesystem. A string containing the path to this temporary file is then returned (e.g., `"Binary data saved to: /tmp/tmp123abc.png"`). The function attempts to use the correct file extension based on the response's `Content-Type` header or by parsing the `encode()` function in the WCPS query.
+    -   If the query fails, a string containing the error message is returned.
 
 #### `calculate_ndvi_action(coverage_id: str, time_slice: str)`
 A specialized method to calculate the Normalized Difference Vegetation Index (NDVI).
