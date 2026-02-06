@@ -20,7 +20,7 @@ This project provides a set of Model Context Protocol (MCP) tools for interactin
     source .venv/bin/activate
     ```
 
-3.  **Install dependencies** (`fastmcp`, `python-wcs`, `python-wcps`, `pydantic`, `typer`, and `uvicorn`)
+3.  **Install dependencies** (`fastmcp`, `python-wcs`, `python-wcps`, `pydantic`, `typer`, `uvicorn`, `Pillow`, `netCDF4`)
     ```bash
     pip install -r requirements.txt
     ```
@@ -33,6 +33,8 @@ This project provides a set of Model Context Protocol (MCP) tools for interactin
 ## Usage
 
 The entry point is `src/main.py`. It can be run in two primary modes controlled by the `--transport` command-line argument: `stdio` (default) and `http`.
+
+In the examples below, `${PROJECT_PATH}` refers to the absolute path of this project.
 
 ### Configuration
 The connection from the MCP server to rasdaman can be configured in two ways.
@@ -55,7 +57,7 @@ To add an MCP tool to your client, use the following general syntax: `gemini mcp
 
 1.  **Add the tool to your client:**
     ```bash
-    gemini mcp add rasdaman-mcp "python3 src/main.py --username rasguest --password rasguest"
+    gemini mcp add rasdaman-mcp "${PROJECT_PATH}/.venv/bin/python ${PROJECT_PATH}/src/main.py --username rasguest --password rasguest"
     ```
 
 2.  **Use the tools via the client:** The LLM can now use the functions (`list_coverages`, `describe_coverage`, etc.) as tools.
@@ -65,7 +67,7 @@ This mode runs a separate web server, which is useful for development, testing, 
 
 1.  **Start the server:**
     ```bash
-    python3 src/main.py --transport http --port 8000 --rasdaman-url "http://localhost:8080/rasdaman/ows"
+    ${PROJECT_PATH}/.venv/bin/python ${PROJECT_PATH}/src/main.py --transport http --port 8000 --rasdaman-url "http://localhost:8080/rasdaman/ows"
     ```
     The server will now be listening on `http://127.0.0.1:8000`.
 

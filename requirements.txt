@@ -4,3 +4,5 @@ wcps
 pydantic
 typer
 uvicorn
+netCDF4
+Pillow
