@@ -1,0 +1,6 @@
+fastmcp
+wcs
+wcps
+pydantic
+typer
+uvicorn
