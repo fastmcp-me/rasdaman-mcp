@@ -1,7 +1,6 @@
 fastmcp
 wcs
 wcps
-pydantic
 typer
 uvicorn
 netCDF4

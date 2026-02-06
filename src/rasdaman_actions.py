@@ -1,6 +1,5 @@
 from wcs.service import WebCoverageService
 from wcps.service import Service as WCPS_Service
-from pydantic import BaseModel
 from typing import List, Tuple
 import os
 import logging
@@ -15,14 +14,6 @@ logger = logging.getLogger("rasdaman_mcp")
 handler = logging.StreamHandler()
 handler.setFormatter(logging.Formatter("%(levelname)s: %(message)s"))
 logger.addHandler(handler)
-
-
-class CoverageMetadata(BaseModel):
-    id: str
-    bbox_wgs84: Tuple[float, float, float, float] | None
-    timesteps: List[str]
-    native_crs: str | None
-    grid_axes: List[str] | str
 
 
 class RasdamanActions:
@@ -60,60 +51,14 @@ class RasdamanActions:
         logger.info(f"Listed {len(coverages)} coverages.")
         return list(coverages.keys())
 
-    def describe_coverage_action(self, coverage_id: str) -> CoverageMetadata:
+    def describe_coverage_action(self, coverage_id: str) -> str:
         """
         Retrieves structural metadata for a specific datacube.
         """
         logger.info(f"Describing coverage: {coverage_id}")
         wcs = self.get_wcs_connection()
-
-        basic_coverages = wcs.list_coverages()
-        basic_cov = basic_coverages.get(coverage_id)
-        if not basic_cov:
-            raise ValueError(f"Coverage '{coverage_id}' not found")
-
-        bbox_wgs84 = None
-        if basic_cov.lon and basic_cov.lat:
-            bbox_wgs84 = (
-                basic_cov.lon.low,
-                basic_cov.lat.low,
-                basic_cov.lon.high,
-                basic_cov.lat.high,
-            )
-
         full_cov = wcs.list_full_info(coverage_id)
-
-        timesteps = []
-        if (
-            full_cov.bbox
-            and hasattr(full_cov.bbox, "ansi")
-            and full_cov.bbox.ansi
-            and full_cov.bbox.ansi.low
-            and full_cov.bbox.ansi.high
-        ):
-            timesteps = [
-                full_cov.bbox.ansi.low.isoformat(),
-                full_cov.bbox.ansi.high.isoformat(),
-            ]
-
-        native_crs = (
-            str(full_cov.bbox.crs) if full_cov.bbox and full_cov.bbox.crs else None
-        )
-
-        grid_axes = []
-        if full_cov.grid_bbox:
-            grid_axes = [axis.name for axis in full_cov.grid_bbox.axes]
-
-        grid_axes_output = grid_axes if grid_axes else "Unknown"
-
-        metadata = {
-            "id": coverage_id,
-            "bbox_wgs84": bbox_wgs84,
-            "timesteps": timesteps,
-            "native_crs": native_crs,
-            "grid_axes": grid_axes_output,
-        }
-        return CoverageMetadata(**metadata)
+        return str(full_cov)
 
     def execute_wcps_query_action(self, wcps_query: str) -> str:
         """

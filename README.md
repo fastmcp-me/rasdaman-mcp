@@ -20,7 +20,7 @@ This project provides a set of Model Context Protocol (MCP) tools for interactin
     source .venv/bin/activate
     ```
 
-3.  **Install dependencies** (`fastmcp`, `python-wcs`, `python-wcps`, `pydantic`, `typer`, `uvicorn`, `Pillow`, `netCDF4`)
+3.  **Install dependencies** (`fastmcp`, `python-wcs`, `python-wcps`, `typer`, `uvicorn`, `Pillow`, `netCDF4`)
     ```bash
     pip install -r requirements.txt
     ```
