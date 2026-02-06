@@ -48,14 +48,6 @@ Executes a raw Web Coverage Processing Service (WCPS) query against the database
     -   If the query result is binary data (e.g., an image like PNG, JPEG, or a NetCDF file), the data is streamed to a temporary file on the local filesystem. A string containing the path to this temporary file is then returned (e.g., `"Binary data saved to: /tmp/tmp123abc.png"`). The function attempts to use the correct file extension based on the response's `Content-Type` header or by parsing the `encode()` function in the WCPS query.
     -   If the query fails, a string containing the error message is returned.
 
-#### `calculate_ndvi_action(coverage_id: str, time_slice: str)`
-A specialized method to calculate the Normalized Difference Vegetation Index (NDVI).
--   **Parameters**:
-    -   `coverage_id` (str): The ID of the Sentinel-2 coverage.
-    -   `time_slice` (str): The date for the calculation (e.g., "2025-06-12").
--   **Returns**: The result from `execute_wcps_query_action`, typically a message indicating binary image data.
--   **Raises**: `ValueError` if `time_slice` is not provided.
-
 ## `CoverageMetadata` Pydantic Model
 A Pydantic BaseModel defining the structure of the metadata returned by `describe_coverage_action`. This model is defined within the `rasdaman_actions.py` module.
 -   `id`: The coverage ID.

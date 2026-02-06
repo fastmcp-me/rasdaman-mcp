@@ -3,7 +3,8 @@ from rasdaman_actions import RasdamanActions, CoverageMetadata
 import os
 import argparse
 
-mcp = FastMCP("Rasdaman Geospatial Server")
+mcp = FastMCP(name="Rasdaman MCP Server",
+              instructions="This server provides access to a rasdaman instance: list coverages, get coverage details, and execute a WCPS query.")
 
 # Determine credentials
 parser = argparse.ArgumentParser(description="Rasdaman MCP Server")
@@ -19,6 +20,12 @@ parser.add_argument(
     type=int,
     default=8000,
     help="The port to use for the http transport.",
+)
+parser.add_argument(
+    "--host",
+    type=str,
+    default="127.0.0.1",
+    help="The host to use for the http transport.",
 )
 parser.add_argument(
     "--rasdaman-url",
@@ -81,6 +88,6 @@ def execute_wcps_query(wcps_query: str) -> str:
 
 if __name__ == "__main__":
     if args.transport == "http":
-        mcp.run(transport="http", port=args.port)
+        mcp.run(transport="http", port=args.port, host=args.host)
     else:
         mcp.run()
