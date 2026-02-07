@@ -1,0 +1,330 @@
+wcps_crash_course = """
+# WCPS Crash Course
+
+The OGC Web Coverage Processing Service (WCPS) standard defines a
+protocol-independent declarative query language for the extraction, processing,
+and analysis of multi-dimensional coverages representing sensor, image, or
+statistics data. All WCPS queries follow this template:
+
+    for $covIter1 in (covName, ...),
+        $covIter2 in (covName, ...),
+        ...
+    let $aliasVar1 := covExpr,
+        $aliasVar2 := covExpr,
+        ...
+    where booleanExpr
+    return processingExpr
+
+Key Rules:
+
+- `for` clauses: required (at least one coverage iterator)
+- `let`: optional
+- `where`: optional, filter whole coverages if `booleanExpr` condition = true
+- `return`: required (final output), contains aggregation or `encode`
+- Multiple for iterators = nested loops (Cartesian product)
+
+
+## Coverage Subsetting
+
+**General syntax:** `covExpr[ axis1(lo:hi), axis2(slice), axis3:"crs"(...), ... ]`
+
+1. $c[Lat(30:40), Lon(10:20)]           // Trim Lat/Lon axes
+2. $c[Lat(35:*), Lon(*:15)]             // * = min/max bound
+3. $c[time("2020-01-01")]               // Slice on time axis = axis removed from result
+4. $c[Lat:"EPSG:4326"(30:40)]           // Trim/slice coordinates in specific CRS
+5. extend($c, {Lat(25:45), Lon(5:25)})  // Extend padding with nulls beyond the bounds of $c
+
+## Scalar operations
+
+**Standard operations** applied on scalar operands return scalar results:
+
+- Arithmetic: `+  -  *  /  abs  round  mod  floor  ceil`, Examples: `1.8 / 3`, `avg($c) * 2`
+- Exponential: `exp  log  ln  pow  sqrt`, Examples: `pow(3, 2)`,
+- Trigonometric: `sin  cos  tan  sinh  cosh  tanh`
+- Comparison: `>  <  >=  <=  =  != min max`, Examples: `2 > 1` (true)
+- Logical: `and  or  xor  not  bit  overlay`, Examples: `(2 > 1) and (3 != 5)`
+- Create multiband value : `{ bandName: value; ..., bandName:  value }`, e.g. `{red: 0c; green: 255c; blue: 0c}`
+- Select field from multiband value: `.`, Examples: `sum($rgbCoverage).blue`
+- Type casting: `(baseType) value` where baseType is one of: boolean, [unsigned] char / short / int / long, float, double, complex, complex2; Examples: `(char) -2.0`
+
+**Built-in condenser (aggregation) functions**
+
+- numeric coverages: `avg`, `add` / `sum`, `min`, `max`, e.g. `max($cov)`
+- boolean coverages: `count` number of true values, e.g. `count($cov.blue > 55uc)`
+
+**General condenser**
+- general condenser: `condense op over $iterVar axis(lo:hi), ... where boolScalarExpr using scalarExpr`
+
+The *general condenser* aggregates values across an iteration domain `axis(lo:hi)` with a condenser
+operation *op* (one of `+`, `*`, `max`, `min`, `and`, `or`).
+For each coordinate in the iteration domain defined by the `over` clause, the
+scalar expression in the `using` clause is evaluated and added to the final
+aggregated result with *op*; the optional `where` clause allows to filter values from
+the aggregation. Example that is equivalent to `sum($c[Lat(-30:-28.5), Lon(111.975:113.475)]`:
+
+    condense +
+    over $y Lat(domain($c[Lat(-30:-28.5)], Lat)),
+         $x Lon(domain($c[Lon(111.975:113.475)], Lon))
+    using $c[Lat($x), Lon($y)]
+
+## Coverage operations
+
+**Standard operations** applied on coverage (or mixed coverage and scalar)
+operands return coverage results. The operation is applied pair-wise on each
+cell from the coverage operands, or on the scalars and each cell from the
+coverage in case some of the operands are scalars.
+*Critical rule:* All coverage operands must have matching domains and CRS.
+
+Examples:
+- `pow($c, 2.0)` (squares each element of coverage $c)
+- `sin($cov)` (applies sine on each element of the coverage)
+- `$c.red <= 120` (compares each element of the red band <= 120)
+- `$c.red <= 120 and $c.green > 150`
+- `(unsigned char) $c` (cast all elements of $c to unsigned char, 0-255 values)
+
+**Resample (scale)**
+- `scale($c, {Lat(0:100), Lon(0:200)})` - To specific grid size
+- `scale($c, {imageCrsDomain($otherCov)})` - To match another coverage's domain
+- `scale($c, 2.0)` - By factor (f > 1 for scaling up, 0 < f < 1 scale down)
+- `scale($c, {Lat(0.5), Lon(2.0)})` - By factor per-axis
+
+**Reproject (crsTransform)**
+- Full syntax:
+```
+crsTransform($c,
+ { Lat:"EPSG:4326", Lon:"EPSG:4326" },        // Target CRS per axis
+ { bilinear },                                // Interpolation (near, bilinear, cubic, etc.)
+ { Lat:0.5, Lon:domain($d, Lat).resolution }, // Optional output resolution
+ { Lat(30.5:60.5), Lon(50.5:70.5) }           // Optional crop output domain
+)
+```
+- Shorthand CRS for all axes: `crsTransform($c, "EPSG:4326", { bilinear })`
+
+**Conditional evaluation**
+```
+switch
+case $c < 0 return 0uc
+case $c > 100 return 255uc
+default return $c
+```
+
+**Coverage construction**
+```
+coverage covName
+over $iterVar axis(lo:hi), ...
+values scalarExpr
+```
+Example (equivalent to `sqrt($c[Lat(-30:-28.5),Lon(111.975:113.475)])`:
+```
+for $c in (test_mean_summer_airtemp)
+return
+    encode(
+      coverage targetCoverage
+      over  $pLat Lat(domain($c[Lat(-30:-28.5)], Lat)),
+            $pLon Lon(domain($c[Lon(111.975:113.475)], Lon))
+      values sqrt($c[Lat($pLat), Lon($pLon)])
+      , "tiff")
+```
+
+**General condenser on coverages**
+The coverage values produced by the `using` expression in each iteration are
+cell-wise aggregated into a single result coverage.
+```
+condense op
+over $iterVar axis(lo:hi), ...
+[ where boolScalarExpr ]
+using covExpr
+```
+
+**Constant coverage**
+```
+coverage covName
+over $iterVar axis(lo:hi), ...
+value list <0;1>
+```
+
+**Encode**
+Always wrap final result in encode() for data export (unless the top expression is an aggregation).
+```
+encode($c, "image/png")           // Raster format for 2D results: PNG, JPEG, TIFF, and any format supported by GDAL
+encode($c, "application/gml+xml") // GML coverage
+encode($c, "text/json")           // JSON format (nD results)
+encode($c, "netcdf")              // netCDF (nD results)
+```
+
+
+## Atomic types & Literals
+
++--------------------+------------+------------------------------------------+
+| **type name**      | **size**   | **description**                          |
++====================+============+==========================================+
+| ``boolean``        | 1 bit      | true (nonzero value), false (zero value) |
++--------------------+------------+------------------------------------------+
+| ``char``           | 8 bit      | signed integer                           |
++--------------------+------------+------------------------------------------+
+| ``unsigned char``  | 8 bit      | unsigned integer                         |
++--------------------+------------+------------------------------------------+
+| ``short``          | 16 bit     | signed integer                           |
++--------------------+------------+------------------------------------------+
+| ``unsigned short`` | 16 bit     | unsigned integer                         |
++--------------------+------------+------------------------------------------+
+| ``int``            | 32 bit     | signed integer                           |
++--------------------+------------+------------------------------------------+
+| ``unsigned int``   | 32 bit     | unsigned integer                         |
++--------------------+------------+------------------------------------------+
+| ``float``          | 32 bit     | single precision floating point          |
++--------------------+------------+------------------------------------------+
+| ``double``         | 64 bit     | double precision floating point          |
++--------------------+------------+------------------------------------------+
+| ``cint16``         | 32 bit     | complex of 16 bit signed integers        |
++--------------------+------------+------------------------------------------+
+| ``cint32``         | 64 bit     | complex of 32 bit signed integers        |
++--------------------+------------+------------------------------------------+
+| ``complex``        | 64 bit     | single precision floating point complex  |
++--------------------+------------+------------------------------------------+
+| ``complex2``       | 128 bit    | double precision floating point complex  |
++--------------------+------------+------------------------------------------+
+
+
++--------------+----------------+--------------+----------------+---------------+
+| WCPS suffix  | WCPS type      | rasql suffix | rasql type     | example       |
++==============+================+==============+================+===============+
+| c            | char           | o            | octet          | -3c           |
++--------------+----------------+--------------+----------------+---------------+
+| uc           | unsigned char  | c            | char           | 255uc         |
++--------------+----------------+--------------+----------------+---------------+
+| s            | short          | s            | short          | -2000s        |
++--------------+----------------+--------------+----------------+---------------+
+| us           | unsigned short | us           | unsigned short | 1000us        |
++--------------+----------------+--------------+----------------+---------------+
+| l or none    | int            | l or none    | long           | 13l == 13     |
++--------------+----------------+--------------+----------------+---------------+
+| ul           | unsigned int   | ul           | unsigned long  | 393ul         |
++--------------+----------------+--------------+----------------+---------------+
+| f            | float          | f            | float          | 0.5f          |
++--------------+----------------+--------------+----------------+---------------+
+| d or none    | double         | d or none    | double         | 12.3d == 12.3 |
++--------------+----------------+--------------+----------------+---------------+
+
+## Metadata operations
+
++---------------------------+----------------------------------------------------+
+| Metadata function         | Result                                             |
++===========================+====================================================+
+| imageCrsDomain(C, a)      | Grid (lo, hi) bounds for axis a                    |
++---------------------------+----------------------------------------------------+
+| imageCrsDomain(C, a).x    | Where x is one of ``lo`` or ``hi``                 |
+|                           | returning the lower or upper bounds respectively   |
++---------------------------+----------------------------------------------------+
+| domain(C, a, c)           | Geo (lo, hi) bounds for axis a in CRS c            |
+|                           | returning the lower and upper bounds respectively  |
++---------------------------+----------------------------------------------------+
+| domain(C, a, c).x         | Where x is one of ``lo`` or ``hi``                 |
+|                           | (returning the lower or upper bounds respectively) |
+|                           | or ``resolution`` (returning the geo resolution of |
+|                           | axis a)                                            |
++---------------------------+----------------------------------------------------+
+| domain(C, a)              | Geo (lo, hi) bounds for axis a                     |
+|                           | returning the lower and upper bounds respectively  |
++---------------------------+----------------------------------------------------+
+| domain(C, a).x            | Where x is one of ``lo`` or ``hi``                 |
+|                           | returning the lower or upper bounds respectively   |
++---------------------------+----------------------------------------------------+
+| domain(C)                 | List of comma-separated axes and their bounds      |
+|                           | according to coverage's CRS orders respectively.   |
+|                           | Each list element contains an axis a               |
+|                           | with the lower and upper bounds in the axis CRS    |
++---------------------------+----------------------------------------------------+
+| crsSet(C)                 | Set of CRS identifiers                             |
++---------------------------+----------------------------------------------------+
+| imageCrs(C)               | Return the grid CRS (CRS:1)                        |
++---------------------------+----------------------------------------------------+
+| nullSet(C)                | Set of null values                                 |
++---------------------------+----------------------------------------------------+
+| cellCount(C)              | Total number of grid pixels                        |
++---------------------------+----------------------------------------------------+
+
+## Query Examples
+
+### Example 1: Temperature conversion + export
+```
+for $c in (global_temp)
+return encode(
+  $c * 1.8 + 32,
+  "image/tiff"
+)
+```
+
+### Example 2: NDVI calculation from multiband coverage
+```
+for $c in (sentinel2)
+let $nir := $c.B08,
+    $red := $c.B04
+return encode(
+  ($nir - $red) / ($nir + $red),
+  "image/png"
+)
+```
+
+#### Example 3: Time-series aggregation + reprojection
+```
+for $c in (temperature_2020)
+return encode(
+  crsTransform(
+    condense avg
+    over $t time("2020-01-01":"2020-12-31")
+    using $c[time($t)],
+    "EPSG:3857", {bilinear}
+  ),
+  "image/jpeg"
+)
+```
+
+#### Example 4: Masking with conditional logic
+```
+for $c in (elevation)
+return encode(
+  switch
+    case $c < 0 return 0          // Ocean → 0
+    case $c > 3000 return 255     // High mountains → 255
+    default return $c / 3000 * 255 // Normalize
+  ,
+  "image/tiff"
+)
+```
+
+## LLM Generation Checklist
+
+Before outputting a WCPS query, verify:
+
+- **Required clauses:** `for ... return ...` present
+- **Coverage names:** Valid identifiers (no quotes/spaces)
+- **Axis labels:** Match coverage metadata (case-sensitive: `Lat` ≠ `lat`)
+- **CRS syntax:** `"EPSG:4326"` or full URI `"http://.../EPSG/0/4326"`
+- **Brackets:** Subsetting uses `[...]`, `extend`/`scale` use `{...}`
+- **Semicolons:** Only in multiband literals `{r:100; g:50; b:25}`
+- **Encoding:** Final output wrapped in `encode(..., "format")` for data export
+- **Boolean/comparison operators:** WCPS uses `and`/`or` (not `&&`/`||`), `!=` (not `<>`)
+
+## Quick Reference Template
+
+- Result is coverage (an array, not scalar number or boolean value):
+```
+for $cov in (your_coverage_name)
+[let $var := expression]...
+[where boolean_condition]
+return encode(
+  coverage-producing-expression,
+  "output_format"
+)
+```
+- Result is scalar:
+```
+for $cov in (your_coverage_name)
+[let $var := expression]...
+[where boolean_condition]
+return sum(coverage-producing-expression)
+```
+
+**Important:** Normally you should apply subsets to coverages, as they are very large and a user does not generally want to get GBs of data as a result.
+"""

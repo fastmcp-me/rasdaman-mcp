@@ -1,13 +1,15 @@
-from wcs.service import WebCoverageService
-from wcps.service import Service as WCPS_Service
-from typing import List, Tuple, Any
-import os
 import logging
-import tempfile
 import mimetypes
+import os
 import re
-import sys
 import subprocess
+import sys
+import tempfile
+from typing import Any
+
+from wcps.service import Service as WCPS_Service
+from wcs.service import WebCoverageService
+from wcps_crash_course import wcps_crash_course
 
 # Configure Logging
 logging.basicConfig(level=logging.INFO, stream=None)
@@ -65,73 +67,7 @@ class RasdamanActions:
         """
         Returns a crash course on writing WCPS queries.
         """
-        crash_course = """
-# WCPS Query Crash Course
-
-WCPS (Web Coverage Processing Service) is a query language for multidimensional rasters. Here's how to write effective queries:
-
-## Basic Syntax
-
-```wcps
-for c in (coverage_name) return encode(c, "format")
-```
-
-## Common Operations
-
-### 1. Selecting a specific time slice
-```wcps
-for c in (Sentinel2_10m) return encode(c[ansi("2025-06-12")], "csv")
-```
-
-### 2. Selecting a specific band
-```wcps
-for c in (Sentinel2_10m) return encode(c[ansi("2025-06-12")][band(4)], "png")
-```
-
-### 3. Spatial cropping
-```wcps
-for c in (Sentinel2_10m) return encode(c[ansi("2025-06-12")][(0:1000, 0:1000)], "png")
-```
-
-### 4. Conditional filtering
-```wcps
-for c in (Sentinel2_10m) return encode(cond(c[ansi("2025-06-12")] > 100, c[ansi("2025-06-12")], 0), "png")
-```
-
-### 5. Mathematical operations
-```wcps
-for c in (Sentinel2_10m) return encode(c[ansi("2025-06-12")][band(4)] * 2.5, "png")
-```
-
-### 6. Multiple bands
-```wcps
-for c in (Sentinel2_10m) return encode(c[ansi("2025-06-12")][band(4):band(7)], "png")
-```
-
-## Output Formats
-
-- `"csv"`: Comma-separated values
-- `"png"`: PNG image
-- `"jpeg"`: JPEG image
-- `"tiff"`: TIFF image
-- `"netcdf"`: NetCDF format
-
-## Tips
-
-1. Use `describe_coverage()` first to understand the coverage structure
-2. Time is typically indexed using `ansi("YYYY-MM-DD")`
-3. Bands are typically indexed using `band(N)` where N is the band number
-4. Spatial coordinates use `[xmin:xmax, ymin:ymax]` syntax
-5. For complex queries, build them up step by step
-
-## Example Workflow
-
-1. List available coverages with `list_coverages()`
-2. Describe a coverage with `describe_coverage("coverage_name")`
-3. Start with simple queries, then add complexity
-4. Use `encode()` to specify output format
-"""
-        return crash_course
+        return wcps_crash_course
 
     def execute_wcps_query_action(self, wcps_query: str) -> Any:
         """
