@@ -61,6 +61,7 @@ The following methods from the `RasdamanActions` class are exposed as tools. Not
 
 - **`list_coverages()`**: Lists all available datacubes.
 - **`describe_coverage(coverage_id: str)`**: Retrieves metadata for a specific datacube.
+- **`wcps_query_crash_course()`**: Returns a crash course on writing WCPS queries with examples and best practices.
 - **`execute_wcps_query(wcps_query: str)`**: Executes a raw WCPS query.
 
 ## 4. Testing the Standalone Server

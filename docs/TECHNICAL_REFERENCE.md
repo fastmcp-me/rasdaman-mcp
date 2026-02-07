@@ -38,6 +38,16 @@ Retrieves structural metadata for a specific datacube.
 -   **Returns**: A `CoverageMetadata` object.
 -   **Raises**: `ValueError` if the specified `coverage_id` is not found.
 
+#### `wcps_query_crash_course_action()`
+Returns a comprehensive crash course on writing WCPS queries. This method provides documentation and examples to help users understand the WCPS query language.
+
+-   **Returns**: A string containing a formatted crash course with:
+    - Basic WCPS syntax examples
+    - Common operations (time slicing, band selection, spatial cropping, conditional filtering, mathematical operations)
+    - Supported output formats (CSV, PNG, JPEG, TIFF, NetCDF)
+    - Best practices and tips for writing effective queries
+    - Example workflow for using the tools together
+
 #### `execute_wcps_query_action(wcps_query: str)`
 Executes a raw Web Coverage Processing Service (WCPS) query against the database. This method is capable of handling both text and binary responses.
 

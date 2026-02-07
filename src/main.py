@@ -76,6 +76,15 @@ def describe_coverage(coverage_id: str) -> str:
 
 
 @mcp.tool()
+def wcps_query_crash_course() -> str:
+    """
+    Returns a crash course on writing WCPS queries.
+    Learn the basic syntax, common operations, and best practices for WCPS queries.
+    """
+    return ras_actions.wcps_query_crash_course_action()
+
+
+@mcp.tool()
 def execute_wcps_query(wcps_query: str) -> Any:
     """
     Executes a raw Web Coverage Processing Service (WCPS) query against the database.

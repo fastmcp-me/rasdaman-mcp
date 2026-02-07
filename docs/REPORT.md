@@ -30,6 +30,7 @@ The following tools are currently available for an LLM to use:
 
 *   **`list_coverages`:** Lists all available datacubes in the Rasdaman database.
 *   **`describe_coverage`:** Retrieves structural metadata (e.g., bounding box, time steps) for a specific datacube.
+*   **`wcps_query_crash_course`:** Returns a comprehensive crash course on writing WCPS queries with syntax examples, common operations, and best practices.
 *   **`execute_wcps_query`:** Executes a raw, user-provided WCPS query string.
 
 ### 3.2. Documentation
