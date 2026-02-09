@@ -28,11 +28,12 @@ Key Rules:
 
 **General syntax:** `covExpr[ axis1(lo:hi), axis2(slice), axis3:"crs"(...), ... ]`
 
-1. $c[Lat(30:40), Lon(10:20)]           // Trim Lat/Lon axes
-2. $c[Lat(35:*), Lon(*:15)]             // * = min/max bound
-3. $c[time("2020-01-01")]               // Slice on time axis = axis removed from result
-4. $c[Lat:"EPSG:4326"(30:40)]           // Trim/slice coordinates in specific CRS
-5. extend($c, {Lat(25:45), Lon(5:25)})  // Extend padding with nulls beyond the bounds of $c
+1. `$c[Lat(30:40), Lon(10:20)]`           // Trim Lat/Lon axes
+2. `$c[Lat(35:*), Lon(*:15)]`             // * = min/max bound
+3. `$c[time("2020-01-01")]`               // Slice on time axis with a date
+3. `$c[time("2020-01-01T10:00:00")]`      // Slice on time axis with an ISO datetime
+4. `$c[Lat:"EPSG:4326"(30:40)]`           // Trim/slice coordinates in specific CRS
+5. `extend($c, {Lat(25:45), Lon(5:25)})`  // Extend padding with nulls beyond the bounds of $c
 
 ## Scalar operations
 
@@ -53,19 +54,20 @@ Key Rules:
 - boolean coverages: `count` number of true values, e.g. `count($cov.blue > 55uc)`
 
 **General condenser**
-- general condenser: `condense op over $iterVar axis(lo:hi), ... where boolScalarExpr using scalarExpr`
 
-The *general condenser* aggregates values across an iteration domain `axis(lo:hi)` with a condenser
-operation *op* (one of `+`, `*`, `max`, `min`, `and`, `or`).
+- general condenser: `condense op over $iterVar axis(lo:hi), ... where boolScalarExpr using scalarExpr`
+- *op* = `+`, `*`, `max`, `min`, `and`, `or`
 For each coordinate in the iteration domain defined by the `over` clause, the
 scalar expression in the `using` clause is evaluated and added to the final
 aggregated result with *op*; the optional `where` clause allows to filter values from
 the aggregation. Example that is equivalent to `sum($c[Lat(-30:-28.5), Lon(111.975:113.475)]`:
 
-    condense +
-    over $y Lat(domain($c[Lat(-30:-28.5)], Lat)),
-         $x Lon(domain($c[Lon(111.975:113.475)], Lon))
-    using $c[Lat($x), Lon($y)]
+```
+condense +
+over $y Lat(domain($c[Lat(-30:-28.5)], Lat)),
+     $x Lon(domain($c[Lon(111.975:113.475)], Lon))
+using $c[Lat($x), Lon($y)]
+```
 
 ## Coverage operations
 
@@ -76,7 +78,7 @@ coverage in case some of the operands are scalars.
 *Critical rule:* All coverage operands must have matching domains and CRS.
 
 Examples:
-- `pow($c, 2.0)` (squares each element of coverage $c)
+- `pow($c, 2.0)` (squares each element of coverage $c; **Critical:** operator `^` does not exist, use `pow` instead)
 - `sin($cov)` (applies sine on each element of the coverage)
 - `$c.red <= 120` (compares each element of the red band <= 120)
 - `$c.red <= 120 and $c.green > 150`
@@ -152,146 +154,37 @@ encode($c, "text/json")           // JSON format (nD results)
 encode($c, "netcdf")              // netCDF (nD results)
 ```
 
-
 ## Atomic types & Literals
 
-+--------------------+------------+------------------------------------------+
-| **type name**      | **size**   | **description**                          |
-+====================+============+==========================================+
-| ``boolean``        | 1 bit      | true (nonzero value), false (zero value) |
-+--------------------+------------+------------------------------------------+
-| ``char``           | 8 bit      | signed integer                           |
-+--------------------+------------+------------------------------------------+
-| ``unsigned char``  | 8 bit      | unsigned integer                         |
-+--------------------+------------+------------------------------------------+
-| ``short``          | 16 bit     | signed integer                           |
-+--------------------+------------+------------------------------------------+
-| ``unsigned short`` | 16 bit     | unsigned integer                         |
-+--------------------+------------+------------------------------------------+
-| ``int``            | 32 bit     | signed integer                           |
-+--------------------+------------+------------------------------------------+
-| ``unsigned int``   | 32 bit     | unsigned integer                         |
-+--------------------+------------+------------------------------------------+
-| ``float``          | 32 bit     | single precision floating point          |
-+--------------------+------------+------------------------------------------+
-| ``double``         | 64 bit     | double precision floating point          |
-+--------------------+------------+------------------------------------------+
-| ``cint16``         | 32 bit     | complex of 16 bit signed integers        |
-+--------------------+------------+------------------------------------------+
-| ``cint32``         | 64 bit     | complex of 32 bit signed integers        |
-+--------------------+------------+------------------------------------------+
-| ``complex``        | 64 bit     | single precision floating point complex  |
-+--------------------+------------+------------------------------------------+
-| ``complex2``       | 128 bit    | double precision floating point complex  |
-+--------------------+------------+------------------------------------------+
+Atomic types:
+- `boolean`
+- `char` (signed 8-bit), `unsigned char`, `short`, `unsigned short`, `int`, `unsigned int`
+- `float`, `double`
+- `cint16`, `cint32`, `complex` (complex of `float`), `complexd` (complex of `double`)
 
+Number literals with a suffix:
+- `-3c` -> char (c)
+- `255uc` -> unsigned char (uc)
+- `-2000s` -> short (s)
+- `1000us` -> unsigned short (us)
+- `13l` == `13` -> int (l or none)
+- `393ul` -> unsigned int (ul)
+- `0.5f` -> float (f)
+- `12.3d` == `12.3` -> double (d or none)
 
-+--------------+----------------+--------------+----------------+---------------+
-| WCPS suffix  | WCPS type      | rasql suffix | rasql type     | example       |
-+==============+================+==============+================+===============+
-| c            | char           | o            | octet          | -3c           |
-+--------------+----------------+--------------+----------------+---------------+
-| uc           | unsigned char  | c            | char           | 255uc         |
-+--------------+----------------+--------------+----------------+---------------+
-| s            | short          | s            | short          | -2000s        |
-+--------------+----------------+--------------+----------------+---------------+
-| us           | unsigned short | us           | unsigned short | 1000us        |
-+--------------+----------------+--------------+----------------+---------------+
-| l or none    | int            | l or none    | long           | 13l == 13     |
-+--------------+----------------+--------------+----------------+---------------+
-| ul           | unsigned int   | ul           | unsigned long  | 393ul         |
-+--------------+----------------+--------------+----------------+---------------+
-| f            | float          | f            | float          | 0.5f          |
-+--------------+----------------+--------------+----------------+---------------+
-| d or none    | double         | d or none    | double         | 12.3d == 12.3 |
-+--------------+----------------+--------------+----------------+---------------+
+**Critical:** Without suffix, `5` -> `int`, `5.0` -> `double`
 
 ## Metadata operations
 
-+---------------------------+----------------------------------------------------+
-| Metadata function         | Result                                             |
-+===========================+====================================================+
-| imageCrsDomain(C, a)      | Grid (lo, hi) bounds for axis a                    |
-+---------------------------+----------------------------------------------------+
-| imageCrsDomain(C, a).x    | Where x is one of ``lo`` or ``hi``                 |
-|                           | returning the lower or upper bounds respectively   |
-+---------------------------+----------------------------------------------------+
-| domain(C, a, c)           | Geo (lo, hi) bounds for axis a in CRS c            |
-|                           | returning the lower and upper bounds respectively  |
-+---------------------------+----------------------------------------------------+
-| domain(C, a, c).x         | Where x is one of ``lo`` or ``hi``                 |
-|                           | (returning the lower or upper bounds respectively) |
-|                           | or ``resolution`` (returning the geo resolution of |
-|                           | axis a)                                            |
-+---------------------------+----------------------------------------------------+
-| domain(C, a)              | Geo (lo, hi) bounds for axis a                     |
-|                           | returning the lower and upper bounds respectively  |
-+---------------------------+----------------------------------------------------+
-| domain(C, a).x            | Where x is one of ``lo`` or ``hi``                 |
-|                           | returning the lower or upper bounds respectively   |
-+---------------------------+----------------------------------------------------+
-| domain(C)                 | List of comma-separated axes and their bounds      |
-|                           | according to coverage's CRS orders respectively.   |
-|                           | Each list element contains an axis a               |
-|                           | with the lower and upper bounds in the axis CRS    |
-+---------------------------+----------------------------------------------------+
-| crsSet(C)                 | Set of CRS identifiers                             |
-+---------------------------+----------------------------------------------------+
-| imageCrs(C)               | Return the grid CRS (CRS:1)                        |
-+---------------------------+----------------------------------------------------+
-| nullSet(C)                | Set of null values                                 |
-+---------------------------+----------------------------------------------------+
-| cellCount(C)              | Total number of grid pixels                        |
-+---------------------------+----------------------------------------------------+
-
-## Query Examples
-
-### Example 1: Temperature conversion + export
-```
-for $c in (global_temp)
-return encode(
-  $c * 1.8 + 32,
-  "image/tiff"
-)
-```
-
-### Example 2: NDVI calculation from multiband coverage
-```
-for $c in (sentinel2)
-let $nir := $c.B08,
-    $red := $c.B04
-return encode(
-  ($nir - $red) / ($nir + $red),
-  "image/png"
-)
-```
-
-#### Example 3: Time-series aggregation + reprojection
-```
-for $c in (temperature_2020)
-return encode(
-  crsTransform(
-    condense avg
-    over $t time("2020-01-01":"2020-12-31")
-    using $c[time($t)],
-    "EPSG:3857", {bilinear}
-  ),
-  "image/jpeg"
-)
-```
-
-#### Example 4: Masking with conditional logic
-```
-for $c in (elevation)
-return encode(
-  switch
-    case $c < 0 return 0          // Ocean → 0
-    case $c > 3000 return 255     // High mountains → 255
-    default return $c / 3000 * 255 // Normalize
-  ,
-  "image/tiff"
-)
-```
+- `imageCrsDomain(cov, axis)` - Grid (lo, hi) bounds
+- `imageCrsDomain(cov, axis).lo` - Grid lower bound (`.hi` for upper bound)
+- `domain(cov)` - Geo (lo, hi) bounds of all axes
+- `domain(cov, axis)` - Geo (lo, hi) bounds
+- `domain(cov, axis).lo` - Geo lower bound (`.hi` for upper bound)
+- `domain(cov, axis, crs)` - Geo (lo, hi) bounds in a crs
+- `domain(cov, axis, crs).lo` - Geo lower bound in a crs (`.hi` for upper bound)
+- `nullSet(cov)` - Null values of cov
+- `cellCount(cov)` - Total number of grid pixels
 
 ## LLM Generation Checklist
 
@@ -326,5 +219,16 @@ for $cov in (your_coverage_name)
 return sum(coverage-producing-expression)
 ```
 
-**Important:** Normally you should apply subsets to coverages, as they are very large and a user does not generally want to get GBs of data as a result.
+**Critical:** operator `^` does not exist, use `pow` instead.
+**Critical:** to select a band use `.`, e.g. `$c.u10`. Do not use spatio-temporal subsetting for bands!
+**Critical:** alias definitions in `let` are separated by commas (not semicolons, or new lines!); the syntax is `let alias := def, alias := def, ...`
+**Critical:** in encode use png for visualizing 2-D image results, tiff for non-8-bit 2-D images, netcdf for n-D results, and json for 1-D small timeseries.
+**Critical:** scalar results do NOT need encode, e.g. when all axes/dimensions are sliced in the query.
+**Critical:** Always apply spatio-temporal subsets, as a user does not generally want to get GBs of data as a result. Subsetting examples:
+
+1. `$c[Lat(30:40), Lon(10:20)]`           // Trim Lat/Lon axes
+2. `$c[Lat(35:*), Lon(*:15)]`             // * = min/max bound
+4. `$c[Lat:"EPSG:4326"(30:40)]`           // Trim/slice coordinates in specific CRS
+3. `$c[time("2020-01-01")]`               // Slice on time axis with a date
+3. `$c[time("2020-01-01T10:00:00")]`      // Slice on time axis with an ISO datetime
 """

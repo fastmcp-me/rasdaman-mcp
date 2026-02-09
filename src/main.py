@@ -60,8 +60,7 @@ ras_actions = RasdamanActions(
 @mcp.tool()
 def list_coverages() -> list[str]:
     """
-    Lists all available datacubes (coverages) in the Rasdaman database.
-    Use this to discover available satellite datasets.
+    Lists all available datacubes (coverages) in rasdaman.
     """
     return ras_actions.list_coverages_action()
 
@@ -69,8 +68,7 @@ def list_coverages() -> list[str]:
 @mcp.tool()
 def describe_coverage(coverage_id: str) -> str:
     """
-    Retrieves structural metadata for a specific datacube.
-    Returns the bounding box (WGS84), time steps, and grid axes.
+    Retrieves structural metadata for a specific datacube (coverage).
     """
     return ras_actions.describe_coverage_action(coverage_id)
 
@@ -78,8 +76,9 @@ def describe_coverage(coverage_id: str) -> str:
 @mcp.tool()
 def wcps_query_crash_course() -> str:
     """
-    Returns a crash course on writing WCPS queries.
-    Learn the basic syntax, common operations, and best practices for WCPS queries.
+    Returns a crash course on writing WCPS queries:
+    learn the basic syntax, common operations, and best practices for WCPS queries.
+    It's recommended to check this before executing queries.
     """
     return ras_actions.wcps_query_crash_course_action()
 
@@ -87,13 +86,14 @@ def wcps_query_crash_course() -> str:
 @mcp.tool()
 def execute_wcps_query(wcps_query: str) -> Any:
     """
-    Executes a raw Web Coverage Processing Service (WCPS) query against the database.
-    Use this for custom band math, aggregation, or filtering.
+    Executes a Web Coverage Processing Service (WCPS) query in rasdaman.
+    Use this for spatio-temporal subsetting of datacubes, processing, aggregation, or filtering.
     If the query returns binary data (e.g., an image or NetCDF file),
-    the tool will save it to a temporary file and return the path.
+    the tool saves it to a temporary file and return the path.
+    **Important:** before calling the tool, show the actual WCPS query to the user.
 
-    Example:
-    for c in (Sentinel2_10m) return encode(c[ansi("2025-06-12")], "csv")
+    Example query:
+    for c in (Sentinel2_10m) return encode((unsigned char) (c[ansi("2025-06-12")].B04 / 10.0), "png")
     """
     return ras_actions.execute_wcps_query_action(wcps_query)
 

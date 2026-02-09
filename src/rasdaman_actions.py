@@ -1,14 +1,15 @@
+import io
+import json
 import logging
-import mimetypes
-import os
-import re
-import subprocess
-import sys
 import tempfile
 from typing import Any
 
-from wcps.service import Service as WCPS_Service
+import numpy as np
+from PIL import Image
+import netCDF4 as nc
+from wcps.service import Service as WCPSConnection, WCPSResult, WCPSResultType
 from wcs.service import WebCoverageService
+
 from wcps_crash_course import wcps_crash_course
 
 # Configure Logging
@@ -28,9 +29,7 @@ class RasdamanActions:
     def get_wcs_connection(self):
         """Helper to establish WCS connection."""
         try:
-            return WebCoverageService(
-                self.rasdaman_url, username=self.username, password=self.password
-            )
+            return WebCoverageService(self.rasdaman_url, username=self.username, password=self.password)
         except Exception as e:
             logger.error(f"WCS Connection failed: {e}")
             raise RuntimeError(f"Failed to connect to Rasdaman at {self.rasdaman_url}")
@@ -38,9 +37,7 @@ class RasdamanActions:
     def get_wcps_connection(self):
         """Helper to establish WCPS connection."""
         try:
-            return WCPS_Service(
-                self.rasdaman_url, username=self.username, password=self.password
-            )
+            return WCPSConnection(self.rasdaman_url, username=self.username, password=self.password)
         except Exception as e:
             logger.error(f"WCPS Connection failed: {e}")
             raise RuntimeError(f"Failed to connect to Rasdaman at {self.rasdaman_url}")
@@ -67,89 +64,79 @@ class RasdamanActions:
         """
         Returns a crash course on writing WCPS queries.
         """
+        logger.info(f"Returning WCPS crash course.")
         return wcps_crash_course
 
     def execute_wcps_query_action(self, wcps_query: str) -> Any:
         """
-        Executes a Web Coverage Processing Service (WCPS) query against the database
-        using the wcps-python-client library.
+        Executes a WCPS query in rasdaman using the wcps-python-client library.
         """
         logger.info(f"Executing WCPS query: {wcps_query}")
 
         wcps_service = self.get_wcps_connection()
-        output_format = None
-
-        match = re.search(
-            r'encode\s*\((?:.*,\s*)?["\']([^"\']+)["\']\s*\)', wcps_query, re.IGNORECASE
-        )
-        if match:
-            output_format = match.group(1).lower()
-
-        binary_formats = [
-            "png",
-            "jpeg",
-            "gif",
-            "tiff",
-            "image/png",
-            "image/jpeg",
-            "image/gif",
-            "image/tiff",
-        ]
-
-        original_stdout = sys.stdout
-        original_stderr = sys.stderr
 
         try:
-            if output_format and any(f in output_format for f in binary_formats):
-                logger.info(
-                    f"Detected binary output format '{output_format}'. Using download()."
-                )
-                suffix = mimetypes.guess_extension(output_format) or ".dat"
-                if "." not in suffix:
-                    suffix = "." + suffix
+            response: WCPSResult = wcps_service.execute(wcps_query)
+            res_type = response.type
 
-                with tempfile.NamedTemporaryFile(
-                    delete=False, suffix=suffix, mode="wb"
-                ) as tmpfile:
-                    file_path = tmpfile.name
+            if res_type in [WCPSResultType.SCALAR, WCPSResultType.MULTIBAND_SCALAR]:
+                ret = str(response.value)
+                logger.info(f"Returning scalar result: {ret}")
+                return ret
 
-                sys.stdout = open(os.devnull, "w")
-                sys.stderr = open(os.devnull, "w")
+            if res_type == WCPSResultType.JSON:
+                json_str = json.dumps(response.value)
+                save_threshold = 500
+                if len(json_str) < save_threshold:
+                    ret = json_str
+                    logger.info(f"Returning JSON result: {ret}")
+                    return ret
 
-                try:
-                    wcps_service.download(wcps_query, output_file=file_path)
+                # else result is too large, save as file and return first 500 chars
+                with tempfile.NamedTemporaryFile(mode='w', delete=False) as tmpfile:
+                    tmpfile.write(json_str)
+                    ret = f"JSON result saved in file {tmpfile.name}; first {save_threshold} chars: "
+                    ret += json_str[0:save_threshold]
+                    logger.info(ret)
+                    return ret
 
-                    subprocess.Popen(["xdg-open", file_path])
+            # at this point the result is some binary format -> save to a file first
+            with tempfile.NamedTemporaryFile(mode='wb', delete=False) as tmpfile:
+                tmpfile.write(response.value)
+                ret = f"{res_type.capitalize()} result saved in file {tmpfile.name} of size {len(response.value)} bytes"
 
-                finally:
-                    sys.stdout.close()
-                    sys.stderr.close()
-                    sys.stdout = original_stdout
-                    sys.stderr = original_stderr
+            if res_type == WCPSResultType.IMAGE:
+                img = Image.open(io.BytesIO(response.value))
+                width, height = img.size
+                n_bands = len(img.getbands())
+                arr = np.array(img)
+                dtype = arr.dtype
+                ret += f"; the result is an image of {width} x {height} pixels, {n_bands} bands of type {dtype}."
+                logger.info(ret)
+                return ret
 
-                result_obj = {"file_path": file_path}
-                logger.info(f"Returning result: {result_obj}")
-                return result_obj
-            else:
-                logger.info(
-                    f"Detected text output format '{output_format or 'none specified'}'. Using execute()."
-                )
-                sys.stdout = open(os.devnull, "w")
-                sys.stderr = open(os.devnull, "w")
-                try:
-                    result = wcps_service.execute(wcps_query)
-                finally:
-                    sys.stdout.close()
-                    sys.stderr.close()
-                    sys.stdout = original_stdout
-                    sys.stderr = original_stderr
+            if res_type == WCPSResultType.NETCDF:
+                with nc.Dataset("memory", mode="r", memory=response.value) as ds:
+                    dimensions = {name: len(dim) for name, dim in ds.dimensions.items()}
+                    variables = {}
+                    for var_name, var in ds.variables.items():
+                        if var_name in ds.dimensions:
+                            continue
+                        variables[var_name] = {
+                            "type": var.dtype,
+                            "shape": var.shape,
+                            "dimensions": var.dimensions,
+                            "attributes": dict(var.__dict__),
+                        }
+                    ret += f"dimensions: {dimensions}; variables: {variables}"
+                logger.info(ret)
+                return ret
 
-                text_result = result.value
-                logger.info(f"Returning text result: {text_result[:100]}...")
-                return text_result
+            # Non-encoded raw array
+            logger.info(ret)
+            return ret
 
         except Exception as e:
-            sys.stdout = original_stdout
-            sys.stderr = original_stderr
-            logger.exception("WCPS Query Failed")
-            return f"WCPS Query Failed: {str(e)}"
+            ret = f"WCPS query failed: {str(e)}"
+            logger.exception(ret)
+            return ret
