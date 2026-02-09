@@ -2,22 +2,46 @@ import io
 import json
 import logging
 import tempfile
+import time
 from typing import Any
 
+import netCDF4 as nc
 import numpy as np
 from PIL import Image
-import netCDF4 as nc
 from wcps.service import Service as WCPSConnection, WCPSResult, WCPSResultType
 from wcs.service import WebCoverageService
 
 from wcps_crash_course import wcps_crash_course
 
-# Configure Logging
-logging.basicConfig(level=logging.INFO, stream=None)
-logger = logging.getLogger("rasdaman_mcp")
-handler = logging.StreamHandler()
-handler.setFormatter(logging.Formatter("%(levelname)s: %(message)s"))
-logger.addHandler(handler)
+logger = logging.getLogger()
+
+
+class Timer:
+    """Simple timer for logging execution time."""
+    def __init__(self):
+        self.start_time = None
+        self.end_time = None
+
+    def __enter__(self):
+        self.start_time = time.time()
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        self.end_time = time.time()
+
+    @property
+    def elapsed(self):
+        if self.start_time is None:
+            return None
+        end = self.end_time if self.end_time is not None else time.time()
+        return end - self.start_time
+
+    def log(self, msg=""):
+        if self.start_time is None:
+            return
+        elapsed = self.elapsed
+        full_msg = f"{msg} in {elapsed:.3f}s"
+        logger.info(full_msg)
 
 
 class RasdamanActions:
@@ -25,40 +49,30 @@ class RasdamanActions:
         self.rasdaman_url = rasdaman_url
         self.username = username
         self.password = password
-
-    def get_wcs_connection(self):
-        """Helper to establish WCS connection."""
-        try:
-            return WebCoverageService(self.rasdaman_url, username=self.username, password=self.password)
-        except Exception as e:
-            logger.error(f"WCS Connection failed: {e}")
-            raise RuntimeError(f"Failed to connect to Rasdaman at {self.rasdaman_url}")
-
-    def get_wcps_connection(self):
-        """Helper to establish WCPS connection."""
-        try:
-            return WCPSConnection(self.rasdaman_url, username=self.username, password=self.password)
-        except Exception as e:
-            logger.error(f"WCPS Connection failed: {e}")
-            raise RuntimeError(f"Failed to connect to Rasdaman at {self.rasdaman_url}")
+        self.wcs_service = WebCoverageService(rasdaman_url, username=username, password=password)
+        self.wcps_service = WCPSConnection(rasdaman_url, username=username, password=password)
 
     def list_coverages_action(self) -> list[str]:
         """
-        Lists all available datacubes (coverages) in the Rasdaman database.
+        Lists all available datacubes (coverages) in the rasdaman database.
         """
-        wcs = self.get_wcs_connection()
-        coverages = wcs.list_coverages()
-        logger.info(f"Listed {len(coverages)} coverages.")
-        return list(coverages.keys())
+        logger.info(f"Listing coverages in rasdaman...")
+        with Timer() as timer:
+            coverages = self.wcs_service.list_coverages()
+            ret = list(coverages.keys())
+            timer.log(f"Listed {len(coverages)} coverages")
+        return ret
 
     def describe_coverage_action(self, coverage_id: str) -> str:
         """
         Retrieves structural metadata for a specific datacube.
         """
         logger.info(f"Describing coverage: {coverage_id}")
-        wcs = self.get_wcs_connection()
-        full_cov = wcs.list_full_info(coverage_id)
-        return str(full_cov)
+        with Timer() as timer:
+            full_cov = self.wcs_service.list_full_info(coverage_id)
+            ret = str(full_cov)
+            timer.log(f"Done getting description for {coverage_id}")
+        return ret
 
     def wcps_query_crash_course_action(self) -> str:
         """
@@ -73,17 +87,26 @@ class RasdamanActions:
         """
         logger.info(f"Executing WCPS query: {wcps_query}")
 
-        wcps_service = self.get_wcps_connection()
-
+        # 1. execute the WCPS query
         try:
-            response: WCPSResult = wcps_service.execute(wcps_query)
+            with Timer() as timer:
+                response: WCPSResult = self.wcps_service.execute(wcps_query)
+                timer.log(f"Executed WCPS query")
             res_type = response.type
+        except Exception as e:
+            ret = f"Executing WCPS query failed: {str(e)}"
+            logger.exception(ret)
+            return ret
 
+        # 2. interpret the result in order to return a more meaningful response to the LLM
+        try:
+            # scalars: returned directly
             if res_type in [WCPSResultType.SCALAR, WCPSResultType.MULTIBAND_SCALAR]:
                 ret = str(response.value)
                 logger.info(f"Returning scalar result: {ret}")
                 return ret
 
+            # JSON: return trimmed to 500 chars, if larger also save as temp file
             if res_type == WCPSResultType.JSON:
                 json_str = json.dumps(response.value)
                 save_threshold = 500
@@ -105,6 +128,7 @@ class RasdamanActions:
                 tmpfile.write(response.value)
                 ret = f"{res_type.capitalize()} result saved in file {tmpfile.name} of size {len(response.value)} bytes"
 
+            # 2D images: return filepath + image metadata
             if res_type == WCPSResultType.IMAGE:
                 img = Image.open(io.BytesIO(response.value))
                 width, height = img.size
@@ -115,6 +139,7 @@ class RasdamanActions:
                 logger.info(ret)
                 return ret
 
+            # NetCDF: return filepath + image metadata
             if res_type == WCPSResultType.NETCDF:
                 with nc.Dataset("memory", mode="r", memory=response.value) as ds:
                     dimensions = {name: len(dim) for name, dim in ds.dimensions.items()}
@@ -137,6 +162,6 @@ class RasdamanActions:
             return ret
 
         except Exception as e:
-            ret = f"WCPS query failed: {str(e)}"
+            ret = f"Failed handling WCPS query result: {str(e)}"
             logger.exception(ret)
             return ret

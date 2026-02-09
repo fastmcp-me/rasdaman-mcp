@@ -1,7 +1,6 @@
-fastmcp
+fastmcp < 3
 wcs
 wcps
-typer
-uvicorn
 netCDF4
 Pillow
+requests

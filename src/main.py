@@ -1,105 +1,155 @@
-from fastmcp import FastMCP
-from rasdaman_actions import RasdamanActions
-import os
+#!/usr/bin/env python3
+"""
+Rasdaman MCP Server — A FastMCP-based server for rasdaman operations.
+Supports http and stdio transports, background execution, and clean shutdown.
+"""
+
 import argparse
+import logging
+import os
 from typing import Any
 
-mcp = FastMCP(
-    name="Rasdaman MCP Server",
-    instructions="This server provides access to a rasdaman instance: list coverages, get coverage details, and execute a WCPS query.",
-)
+import requests
+from fastmcp import FastMCP
 
-# Determine credentials
-parser = argparse.ArgumentParser(description="Rasdaman MCP Server")
-parser.add_argument(
-    "--transport",
-    type=str,
-    choices=["stdio", "http"],
-    default="stdio",
-    help="The transport protocol to use.",
-)
-parser.add_argument(
-    "--port",
-    type=int,
-    default=8000,
-    help="The port to use for the http transport.",
-)
-parser.add_argument(
-    "--host",
-    type=str,
-    default="127.0.0.1",
-    help="The host to use for the http transport.",
-)
-parser.add_argument(
-    "--rasdaman-url",
-    type=str,
-    default=os.getenv("RASDAMAN_URL", "http://localhost:8080/rasdaman/ows"),
-    help="URL of the Rasdaman server.",
-)
-parser.add_argument(
-    "--username",
-    type=str,
-    default=os.getenv("RASDAMAN_USERNAME", "rasguest"),
-    help="Username for authentication.",
-)
-parser.add_argument(
-    "--password",
-    type=str,
-    default=os.getenv("RASDAMAN_PASSWORD", "rasguest"),
-    help="Password for authentication.",
-)
-args = parser.parse_args()
+from rasdaman_actions import RasdamanActions
+
+LOGGING_FORMAT = "%(levelname)s: %(message)s"
+DEFAULT_LOG_LEVEL = "INFO"
+NOISY_LIBS = [
+    "docket.worker",
+    "mcp.server.streamable_http_manager",
+    "mcp.server.lowlevel.server",
+]
+DEFAULT_RASDAMAN_URL = "http://localhost:8080/rasdaman/ows"
+DEFAULT_RASDAMAN_USERNAME = "rasguest"
+DEFAULT_RASDAMAN_PASSWORD = "rasguest"
+DEFAULT_MCP_PORT = 8000
+DEFAULT_MCP_HOST = "127.0.0.1"
+DEFAULT_MCP_TRANSPORT = "stdio"
 
 
-# Instantiate RasdamanActions with credentials
-ras_actions = RasdamanActions(
-    rasdaman_url=args.rasdaman_url, username=args.username, password=args.password
-)
+# ---------------------------------------
+# Setup logging, arg parsing & validation
+# ---------------------------------------
 
 
-@mcp.tool()
-def list_coverages() -> list[str]:
-    """
-    Lists all available datacubes (coverages) in rasdaman.
-    """
-    return ras_actions.list_coverages_action()
+def configure_logging(log_level=DEFAULT_LOG_LEVEL):
+    """Configure root logging and silence noisy third-party libraries."""
+    logging.basicConfig(
+        level=getattr(logging, log_level.upper()),
+        format=LOGGING_FORMAT,
+        stream=None
+    )
+    # Silence noisy libraries (suppress INFO-level noise)
+    for lib in NOISY_LIBS:
+        logging.getLogger(lib).setLevel(logging.WARNING)
 
 
-@mcp.tool()
-def describe_coverage(coverage_id: str) -> str:
-    """
-    Retrieves structural metadata for a specific datacube (coverage).
-    """
-    return ras_actions.describe_coverage_action(coverage_id)
+def parse_args():
+    """Parse command line arguments."""
+    parser = argparse.ArgumentParser(description="Rasdaman MCP server -- LLM-powered access to a rasdaman database.")
+    parser.add_argument(
+        "--transport", type=str, default=DEFAULT_MCP_TRANSPORT,
+        choices=[DEFAULT_MCP_TRANSPORT, "http"],
+        help=f"Transport protocol for communication with the MCP client (default: {DEFAULT_MCP_TRANSPORT})",
+    )
+    parser.add_argument(
+        "--port", type=int, default=DEFAULT_MCP_PORT,
+        help=f"Port for HTTP transport (default: {DEFAULT_MCP_PORT})",
+    )
+    parser.add_argument(
+        "--host", type=str, default=DEFAULT_MCP_HOST,
+        help=f"Host for HTTP transport (default: {DEFAULT_MCP_HOST})",
+    )
+    parser.add_argument(
+        "--rasdaman-url", type=str, default=os.getenv("RASDAMAN_URL", DEFAULT_RASDAMAN_URL),
+        help=f"rasdaman OWS endpoint (default: {DEFAULT_RASDAMAN_URL})",
+    )
+    parser.add_argument(
+        "--username", type=str, default=os.getenv("RASDAMAN_USERNAME", DEFAULT_RASDAMAN_USERNAME),
+        help=f"rasdaman username (default: {DEFAULT_RASDAMAN_USERNAME})",
+    )
+    parser.add_argument(
+        "--password", type=str, default=os.getenv("RASDAMAN_PASSWORD", DEFAULT_RASDAMAN_PASSWORD),
+        help=f"rasdaman password (default: {DEFAULT_RASDAMAN_PASSWORD})",
+    )
+    parser.add_argument(
+        "--log-level", type=str, default="INFO",
+        choices=["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"],
+        help="Logging level (default: INFO)",
+    )
+    return parser.parse_args()
 
 
-@mcp.tool()
-def wcps_query_crash_course() -> str:
-    """
-    Returns a crash course on writing WCPS queries:
-    learn the basic syntax, common operations, and best practices for WCPS queries.
-    It's recommended to check this before executing queries.
-    """
-    return ras_actions.wcps_query_crash_course_action()
+def validate_rasdaman_connection(rasdaman_url):
+    """Validate rasdaman_url is reachable"""
+    try:
+        resp = requests.head(rasdaman_url, timeout=5)
+        logging.debug(f"Rasdaman URL is reachable: {resp.status_code}")
+    except requests.RequestException as e:
+        logging.warning(f"Could not reach Rasdaman at {rasdaman_url}: {e}")
 
 
-@mcp.tool()
-def execute_wcps_query(wcps_query: str) -> Any:
-    """
-    Executes a Web Coverage Processing Service (WCPS) query in rasdaman.
-    Use this for spatio-temporal subsetting of datacubes, processing, aggregation, or filtering.
-    If the query returns binary data (e.g., an image or NetCDF file),
-    the tool saves it to a temporary file and return the path.
-    **Important:** before calling the tool, show the actual WCPS query to the user.
+# ------------------------
+# FastMCP App Factory
+# ------------------------
 
-    Example query:
-    for c in (Sentinel2_10m) return encode((unsigned char) (c[ansi("2025-06-12")].B04 / 10.0), "png")
-    """
-    return ras_actions.execute_wcps_query_action(wcps_query)
+def create_mcp_app(rasdaman_url, rasdaman_username, rasdaman_password, log_level) -> FastMCP:
+    """Factory function to build the FastMCP app with tools."""
+    mcp = FastMCP(
+        name="Rasdaman MCP Server",
+        instructions=(
+            "This server provides access to a rasdaman instance: "
+            "list coverages, get coverage details, and execute WCPS queries."
+        ),
+        log_level=log_level.upper(),
+    )
+
+    ras_actions = RasdamanActions(
+        rasdaman_url=rasdaman_url, username=rasdaman_username, password=rasdaman_password
+    )
+
+    @mcp.tool()
+    def list_coverages() -> list[str]:
+        """
+        Lists all available datacubes (coverages) in rasdaman.
+        """
+        return ras_actions.list_coverages_action()
+
+    @mcp.tool()
+    def describe_coverage(coverage_id: str) -> str:
+        """
+        Retrieves structural metadata for a specific datacube (coverage).
+        """
+        return ras_actions.describe_coverage_action(coverage_id)
+
+    @mcp.tool()
+    def wcps_query_crash_course() -> str:
+        """
+        Returns a crash course on writing WCPS queries:
+        learn the basic syntax, common operations, and best practices for WCPS queries.
+        It's recommended to check this before executing queries.
+        """
+        return ras_actions.wcps_query_crash_course_action()
+
+    @mcp.tool()
+    def execute_wcps_query(wcps_query: str) -> Any:
+        """
+        Executes a Web Coverage Processing Service (WCPS) query in rasdaman.
+        Use this for spatio-temporal subsetting of datacubes, processing, aggregation, or filtering.
+        If the query returns binary data (e.g., an image or NetCDF file),
+        the tool saves it to a temporary file and return the path.
+        **Important:** Show the actual WCPS query and the result file path to the user.
+        """
+        return ras_actions.execute_wcps_query_action(wcps_query)
+
+    return mcp
 
 
 if __name__ == "__main__":
-    if args.transport == "http":
-        mcp.run(transport="http", port=args.port, host=args.host)
-    else:
-        mcp.run()
+    args = parse_args()
+    configure_logging(log_level=args.log_level)
+    validate_rasdaman_connection(args.rasdaman_url)
+    mcp = create_mcp_app(args.rasdaman_url, args.username, args.password, args.log_level)
+    mcp.run(transport=args.transport, port=args.port, host=args.host)
