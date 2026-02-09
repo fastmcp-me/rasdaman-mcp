@@ -222,7 +222,7 @@ return sum(coverage-producing-expression)
 **Critical:** operator `^` does not exist, use `pow` instead.
 **Critical:** to select a band use `.`, e.g. `$c.u10`. Do not use spatio-temporal subsetting for bands!
 **Critical:** alias definitions in `let` are separated by commas (not semicolons, or new lines!); the syntax is `let alias := def, alias := def, ...`
-**Critical:** in encode use png for visualizing 2-D image results, tiff for non-8-bit 2-D images, netcdf for n-D results, and json for 1-D small timeseries.
+**Critical:** in encode use 'image/png' for visualizing 2-D image results, netcdf for n-D results, and json for 1-D small timeseries; avoid encode to 'application/gml+xml'.
 **Critical:** scalar results do NOT need encode, e.g. when all axes/dimensions are sliced in the query.
 **Critical:** Always apply spatio-temporal subsets, as a user does not generally want to get GBs of data as a result. Subsetting examples:
 
