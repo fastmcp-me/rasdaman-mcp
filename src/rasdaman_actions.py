@@ -11,7 +11,7 @@ from PIL import Image
 from wcps.service import Service as WCPSConnection, WCPSResult, WCPSResultType
 from wcs.service import WebCoverageService
 
-from wcps_crash_course import wcps_crash_course
+from .wcps_crash_course import WCPS_CRASH_COURSE
 
 logger = logging.getLogger()
 
@@ -79,7 +79,7 @@ class RasdamanActions:
         Returns a crash course on writing WCPS queries.
         """
         logger.info(f"Returning WCPS crash course.")
-        return wcps_crash_course
+        return WCPS_CRASH_COURSE
 
     def execute_wcps_query_action(self, wcps_query: str) -> Any:
         """

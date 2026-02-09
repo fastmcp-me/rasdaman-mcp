@@ -12,7 +12,7 @@ from typing import Any
 import requests
 from fastmcp import FastMCP
 
-from rasdaman_actions import RasdamanActions
+from .rasdaman_actions import RasdamanActions
 
 LOGGING_FORMAT = "%(levelname)s: %(message)s"
 DEFAULT_LOG_LEVEL = "INFO"
@@ -144,12 +144,29 @@ def create_mcp_app(rasdaman_url, rasdaman_username, rasdaman_password, log_level
         """
         return ras_actions.execute_wcps_query_action(wcps_query)
 
+    @mcp.tool()
+    def validate_wcps_query(wcps_query: str) -> str:
+        """
+        Validates the syntax of a WCPS query without executing it.
+        Use this to check if your WCPS query is syntactically correct before execution.
+        Returns "VALID" if the query syntax is correct, or "INVALID SYNTAX: <error message>" if there are syntax errors.
+        """
+        return validate_wcps_query(wcps_query)
+
     return mcp
 
 
-if __name__ == "__main__":
+def main():
+    """Entrypoint."""
     args = parse_args()
     configure_logging(log_level=args.log_level)
     validate_rasdaman_connection(args.rasdaman_url)
     mcp = create_mcp_app(args.rasdaman_url, args.username, args.password, args.log_level)
-    mcp.run(transport=args.transport, port=args.port, host=args.host)
+    if args.transport == 'http':
+        mcp.run(transport=args.transport, port=args.port, host=args.host)
+    else:
+        mcp.run(transport=args.transport)
+
+
+if __name__ == "__main__":
+    main()

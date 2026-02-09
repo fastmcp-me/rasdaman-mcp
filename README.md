@@ -21,7 +21,7 @@ The MCP server translates these tool calls into actual WCS/WCPS queries that ras
     source .venv/bin/activate
     ```
 
-3.  **Install dependencies** (`fastmcp < 3`, `wcs`, `wcps`, `Pillow`, `netCDF4`, `requests`)
+3.  **Install dependencies** (`fastmcp < 3`, `wcs`, `wcps`, `Pillow`, `netCDF4`, `requests`, `antlr4-python3-runtime`)
     ```bash
     uv pip install -r requirements.txt
     ```
@@ -103,6 +103,7 @@ The following methods are exposed as tools:
 - `list_coverages()`: Lists all available datacubes.
 - `describe_coverage(coverage_id)`: Retrieves metadata for a specific datacube.
 - `wcps_query_crash_course()`: Returns a crash course on WCPS syntax with examples and best practices.
+- `validate_wcps_query(wcps_query)`: Validates the syntax of a WCPS query without executing it.
 - `execute_wcps_query(wcps_query)`: Executes a raw WCPS query and returns a result either directly as a string (scalars or small json), or as a filepath.
 
 ### Testing

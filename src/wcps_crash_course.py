@@ -1,4 +1,4 @@
-wcps_crash_course = """
+WCPS_CRASH_COURSE = """
 # WCPS Crash Course
 
 The OGC Web Coverage Processing Service (WCPS) standard defines a

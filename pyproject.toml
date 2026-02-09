@@ -1,0 +1,83 @@
+[project]
+name = "rasdaman-mcp"
+dynamic = ["version"]
+authors = [
+  { name="Dimitar Misev", email="misev@rasdaman.com" },
+]
+description = "MCP server enabling LLM-powered access to multi-dimensional geo-spatial datacubes in rasdaman."
+readme = "README.md"
+requires-python = ">=3.10"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Development Status :: 4 - Beta",
+    "Topic :: Database :: Front-Ends",
+    "Topic :: Scientific/Engineering :: GIS",
+    "Topic :: Scientific/Engineering :: Image Processing",
+    "Intended Audience :: Developers",
+    "Intended Audience :: Science/Research",
+]
+license = "MIT"
+license-files = ["LICENSE"]
+keywords = ["rasdaman", "wcps", "wcs", "mcp", "llm", "gis"]
+dependencies = [
+    "fastmcp<3",
+    "wcs",
+    "wcps",
+    "netCDF4",
+    "Pillow",
+    "requests",
+    "antlr4-python3-runtime",
+    "numpy",
+]
+
+[project.scripts]
+rasdaman-mcp = "src.main:main"
+
+[project.urls]
+Documentation = "https://rasdaman.github.io/rasdaman-mcp/"
+Source = "https://github.com/rasdaman/rasdaman-mcp"
+Issues = "https://github.com/rasdaman/rasdaman-mcp/issues"
+
+[project.optional-dependencies]
+docs = [
+    "sphinx-autoapi",  # Sphinx AutoAPI for documentation
+    "sphinx",
+    "recommonmark",    # Allows to directly include the README.md
+]
+tests = [
+    "pytest"
+]
+
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["src*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[tool.setuptools.dynamic]
+version = {attr = "src.__version__"}
+
+[tool.pylint.'MESSAGES CONTROL']
+max-line-length = 120
+ignore = ["wcpsLexer.py", "wcpsListener.py", "wcpsParser.py"]
+disable = """
+    too-many-arguments,
+    not-callable,
+    too-many-lines,
+    too-many-public-methods,
+    too-few-public-methods,
+    too-many-return-statements,
+    missing-module-docstring,
+"""
