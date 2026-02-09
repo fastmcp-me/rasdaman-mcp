@@ -80,4 +80,5 @@ disable = """
     too-few-public-methods,
     too-many-return-statements,
     missing-module-docstring,
+    logging-fstring-interpolation,
 """

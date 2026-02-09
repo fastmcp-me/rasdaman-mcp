@@ -2,7 +2,7 @@
 """Test script for WCPS query validator"""
 
 import pytest
-from src.wcps_validator import validate_wcps_query
+from src.rasdaman_actions import RasdamanActions
 
 
 @pytest.mark.parametrize(
@@ -21,7 +21,8 @@ from src.wcps_validator import validate_wcps_query
     ],
 )
 def test_wcps_validator(query: str, expected: str):
-    result = validate_wcps_query(query)
+    ras_actions = RasdamanActions("", "", "")
+    result = ras_actions.validate_wcps_query_action(query)
 
     assert result.startswith(expected), (
         f"Query: {query}\n"

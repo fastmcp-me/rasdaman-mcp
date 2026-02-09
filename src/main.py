@@ -151,7 +151,7 @@ def create_mcp_app(rasdaman_url, rasdaman_username, rasdaman_password, log_level
         Use this to check if your WCPS query is syntactically correct before execution.
         Returns "VALID" if the query syntax is correct, or "INVALID SYNTAX: <error message>" if there are syntax errors.
         """
-        return validate_wcps_query(wcps_query)
+        return ras_actions.validate_wcps_query_action(wcps_query)
 
     return mcp
 
