@@ -61,13 +61,13 @@ Key Rules:
 ## Coverage operations
 
 **Standard operations**
-- `coverage op coverage`, `coverage op scalar`, `scalar op coverage`, `op(coverage)`, etc.
-- *op* is applied pair-wise on each cell from the coverage operands, or on the scalars and each cell from the coverage in case some of the operands are scalars.
-- result is a coverage
+- `cov op cov`, `cov op scalar`, `scalar op cov`, `op(cov)`, `cov.band`
+- *op* is applied pair-wise on each cell from the coverage operands, or on the scalar and each cell from the coverage; result is a coverage.
 - **Critical rule:** All coverage operands must have matching domains and CRS; use `scale`, `crsTransform`, and `extend` or subsetting to match coverages.
 
 Examples:
-- `pow($c, 2.0)` (squares each element of coverage $c; **Critical:** operator `^` does not exist, use `pow` instead)
+- `pow($c, 2.0)` (squares each element of coverage $c)
+ - **Critical:** operator `^` does not exist, use `pow` instead
 - `sin($cov)` (applies sine on each element of the coverage)
 - `$c.red <= 120` (compares each element of the red band <= 120)
 - `$c.red <= 120 and $c.green > 150`
