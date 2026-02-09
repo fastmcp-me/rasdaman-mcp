@@ -17,9 +17,8 @@ statistics data. All WCPS queries follow this template:
 
 Key Rules:
 
-- `for` clauses: required (at least one coverage iterator)
-- `let`: optional
-- `where`: optional, filter whole coverages if `booleanExpr` condition = true
+- `for`: required (at least one coverage iterator)
+- `let` and `where`: optional
 - `return`: required (final output), contains aggregation or `encode`
 - Multiple for iterators = nested loops (Cartesian product)
 
@@ -33,7 +32,7 @@ Key Rules:
 3. `$c[time("2020-01-01")]`               // Slice on time axis with a date
 3. `$c[time("2020-01-01T10:00:00")]`      // Slice on time axis with an ISO datetime
 4. `$c[Lat:"EPSG:4326"(30:40)]`           // Trim/slice coordinates in specific CRS
-5. `extend($c, {Lat(25:45), Lon(5:25)})`  // Extend padding with nulls beyond the bounds of $c
+5. `extend($c, {Lat(25:45), Lon(5:25)})`  // Crop while padding with nulls beyond the bounds of $c
 
 ## Scalar operations
 
@@ -57,25 +56,15 @@ Key Rules:
 
 - general condenser: `condense op over $iterVar axis(lo:hi), ... where boolScalarExpr using scalarExpr`
 - *op* = `+`, `*`, `max`, `min`, `and`, `or`
-For each coordinate in the iteration domain defined by the `over` clause, the
-scalar expression in the `using` clause is evaluated and added to the final
-aggregated result with *op*; the optional `where` clause allows to filter values from
-the aggregation. Example that is equivalent to `sum($c[Lat(-30:-28.5), Lon(111.975:113.475)]`:
-
-```
-condense +
-over $y Lat(domain($c[Lat(-30:-28.5)], Lat)),
-     $x Lon(domain($c[Lon(111.975:113.475)], Lon))
-using $c[Lat($x), Lon($y)]
-```
+- `where`: optional
 
 ## Coverage operations
 
-**Standard operations** applied on coverage (or mixed coverage and scalar)
-operands return coverage results. The operation is applied pair-wise on each
-cell from the coverage operands, or on the scalars and each cell from the
-coverage in case some of the operands are scalars.
-*Critical rule:* All coverage operands must have matching domains and CRS.
+**Standard operations**
+- `coverage op coverage`, `coverage op scalar`, `scalar op coverage`, `op(coverage)`, etc.
+- *op* is applied pair-wise on each cell from the coverage operands, or on the scalars and each cell from the coverage in case some of the operands are scalars.
+- result is a coverage
+- **Critical rule:** All coverage operands must have matching domains and CRS; use `scale`, `crsTransform`, and `extend` or subsetting to match coverages.
 
 Examples:
 - `pow($c, 2.0)` (squares each element of coverage $c; **Critical:** operator `^` does not exist, use `pow` instead)
@@ -116,21 +105,9 @@ coverage covName
 over $iterVar axis(lo:hi), ...
 values scalarExpr
 ```
-Example (equivalent to `sqrt($c[Lat(-30:-28.5),Lon(111.975:113.475)])`:
-```
-for $c in (test_mean_summer_airtemp)
-return
-    encode(
-      coverage targetCoverage
-      over  $pLat Lat(domain($c[Lat(-30:-28.5)], Lat)),
-            $pLon Lon(domain($c[Lon(111.975:113.475)], Lon))
-      values sqrt($c[Lat($pLat), Lon($pLon)])
-      , "tiff")
-```
 
 **General condenser on coverages**
-The coverage values produced by the `using` expression in each iteration are
-cell-wise aggregated into a single result coverage.
+- aggregate whole coverage values (cell-wise) produced by the `using` clause
 ```
 condense op
 over $iterVar axis(lo:hi), ...
@@ -146,12 +123,13 @@ value list <0;1>
 ```
 
 **Encode**
-Always wrap final result in encode() for data export (unless the top expression is an aggregation).
+- Always wrap final result in encode() for data export (unless the top expression produces scalar, like aggregation or subset slicing all axes).
 ```
-encode($c, "image/png")           // Raster format for 2D results: PNG, JPEG, TIFF, and any format supported by GDAL
-encode($c, "application/gml+xml") // GML coverage
-encode($c, "text/json")           // JSON format (nD results)
-encode($c, "netcdf")              // netCDF (nD results)
+encode($c[time("..")], "image/png")  // Raster format for visualizing 2D results: PNG, JPEG, TIFF, and any format supported by GDAL
+encode($c, "application/json")       // JSON format (best for 1-D results)
+encode($c, "netcdf")                 // netCDF (3D or higher-dimension results)
+$c[time(t), Lat(y), Lon(x)]          // No encode needed, result is a scalar value
+avg($c[time(t)])                     // No encode needed
 ```
 
 ## Atomic types & Literals
