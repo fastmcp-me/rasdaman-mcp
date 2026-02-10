@@ -21,9 +21,9 @@ The MCP server translates these tool calls into actual WCS/WCPS queries that ras
     source .venv/bin/activate
     ```
 
-3.  **Install dependencies** (`fastmcp < 3`, `wcs`, `wcps`, `Pillow`, `netCDF4`, `requests`, `antlr4-python3-runtime`)
+3.  **Install from source**
     ```bash
-    uv pip install -r requirements.txt
+    uv pip install -e .
     ```
 
 4.  **Deactivate the virtual environment** when done:
@@ -33,9 +33,7 @@ The MCP server translates these tool calls into actual WCS/WCPS queries that ras
 
 ## Usage
 
-The entry point is `src/main.py`. It can be run in two primary modes controlled by the `--transport` command-line argument: `stdio` (default) and `http`.
-
-In the examples below, `${PROJECT_PATH}` refers to the absolute path of this project.
+The entry point is `rasdaman-mcp`. It can be run in two primary modes controlled by the `--transport` command-line argument: `stdio` (default) and `http`.
 
 ### Configuration
 The connection from the MCP server to rasdaman can be configured in two ways.
@@ -54,13 +52,13 @@ The connection from the MCP server to rasdaman can be configured in two ways.
 Used for direct integration with clients that take over managing the server process. It uses standard input/output for communication.
 Generally in your client configuration you need to specify the command to run the MCP tool:
 
-    python3 ${PROJECT_PATH}/src/main.py --username rasguest --password rasguest
+    rasdaman-mcp --username rasguest --password rasguest
 
 Keep in mind that all dependencies are installed, and the venv is activated if necessary.
 
 Example for gemini-cli:
 
-    gemini mcp add rasdaman-mcp "${PROJECT_PATH}/.venv/bin/python ${PROJECT_PATH}/src/main.py --username rasguest --password rasguest"
+    gemini mcp add rasdaman-mcp "rasdaman-mcp --username rasguest --password rasguest"
 
 Benefits:
 - Simplicity: No need to manage a separate server process or ports.
@@ -71,13 +69,13 @@ This mode runs a standalone Web server.
 
 1. Start the server:
 
-        .venv/bin/python src/main.py --transport http --host 127.0.0.1 --port 8000 --rasdaman-url "http://localhost:8080/rasdaman/ows"
+        rasdaman-mcp --transport http --host 127.0.0.1 --port 8000 --rasdaman-url "http://localhost:8080/rasdaman/ows"
 
 2. Configure your client to add an MCP server at `http://127.0.0.1:8000/mcp`. For example, for 
    Mistral Vibe extend the config.toml with a section like this:
 
         [[mcp_servers]]
-        name = "rasdaman_mcp"
+        name = "rasdaman-mcp"
         transport = "streamable-http"
         url = "http://127.0.0.1:8000/mcp/"
 
@@ -95,7 +93,8 @@ Benefits:
   username, and password. It then instantiates the `RasdamanActions` class and decorates its methods to expose them as tools.
 - `RasdamanActions` Class (`rasdaman_actions.py`): Encapsulates all interaction with the rasdaman WCS/WCPS endpoints.
   It is initialized with the server URL and credentials, and its methods contain the logic for listing coverages, describing them, and executing queries.
-- WCPS Crash Course (`wcps_crash_course.py`): A short summary of the syntax of WCPS, allowing LLMs to generate more accurate queries.
+- WCPS crash course (`wcps_crash_course.py`): A short summary of the syntax of WCPS, allowing LLMs to generate more accurate queries.
+- WCPS query validation (`query_validator.py`): Throws a `SyntaxError` if a WCPS query has invalid syntax, allowing LLMs to locally validate query syntax. 
 
 ### 3. Defined Tools
 
