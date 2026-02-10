@@ -7,18 +7,15 @@ import time
 import netCDF4 as nc
 import numpy as np
 from PIL import Image
-from antlr4 import InputStream, CommonTokenStream
-from antlr4.error.ErrorListener import ErrorListener
 from wcps.model import WCPSClientException
 from wcps.service import Service as WCPSConnection, WCPSResult, WCPSResultType
 from wcs.service import WebCoverageService
 
-from .wcps_crash_course import WCPS_CRASH_COURSE
-from .wcps_parser.wcpsLexer import wcpsLexer
-from .wcps_parser.wcpsParser import wcpsParser
+from src.wcps_crash_course import WCPS_CRASH_COURSE
+from src.wcps_parser.query_validator import validate_wcps_query
 
 logger = logging.getLogger()
-SAVE_THRESHOLD = 500
+SAVE_THRESHOLD = 1000
 
 
 class Timer:
@@ -93,37 +90,20 @@ class RasdamanActions:
 
     def validate_wcps_query_action(self, wcps_query: str) -> str:
         """
-        Validates a WCPS query string using the ANTLR4 parser.
+        Validates a WCPS query string by parsing it.
         Returns "VALID" if the query is syntactically correct,
         "INVALID SYNTAX: <error message>" otherwise.
         """
         try:
-            # create input stream from the query string
-            input_stream = InputStream(wcps_query)
-            # create lexer
-            lexer = wcpsLexer(input_stream)
-            lexer.removeErrorListeners()
-            lexer.addErrorListener(ErrorListener())
-            token_stream = CommonTokenStream(lexer)
-            token_stream.fill()
-            # create parser
-            parser = wcpsParser(token_stream)
-            # set error handler to collect errors
-            parser.removeErrorListeners()
-            parser.addErrorListener(ValidationErrorListener())
-            # try to parse the query
-            parser.wcpsQuery()
-            # success
+            validate_wcps_query(wcps_query)
             return "VALID"
-        except ValueError as e:
-            # fail
+        except SyntaxError as e:
             return f"INVALID SYNTAX: {str(e)}"
 
     def execute_wcps_query_action(self, wcps_query: str) -> str:
         """
         Executes a WCPS query in rasdaman using the wcps-python-client library.
         """
-        # pylint: disable=too-many-locals
         logger.info(f"Executing WCPS query: {wcps_query}")
 
         # 1. execute the WCPS query
@@ -146,17 +126,15 @@ class RasdamanActions:
 
             # JSON: return trimmed to 500 chars, if larger also save as temp file
             if response.type == WCPSResultType.JSON:
-                json_str = json.dumps(response.value)
-                if len(json_str) < SAVE_THRESHOLD:
-                    ret = json_str
+                ret = json.dumps(response.value)
+                if len(ret) < SAVE_THRESHOLD:
                     logger.info(f"Returning JSON result: {ret}")
                     return ret
 
                 # else result is too large, save as file and return first 500 chars
                 with tempfile.NamedTemporaryFile(mode='w', delete=False) as tmpfile:
-                    tmpfile.write(json_str)
-                    ret = f"JSON result saved in file {tmpfile.name}; first {SAVE_THRESHOLD} chars: "
-                    ret += json_str[0:SAVE_THRESHOLD]
+                    tmpfile.write(ret)
+                    ret = f"JSON result saved in file {tmpfile.name}"
                     logger.info(ret)
                     return ret
 
@@ -201,19 +179,3 @@ class RasdamanActions:
             ret = f"Failed handling WCPS query result: {str(e)}"
             logger.exception(ret)
             return ret
-
-
-class ValidationErrorListener(ErrorListener):
-    """
-    Custom error listener to collect parsing errors.
-    """
-
-    def __init__(self):
-        super().__init__()
-        self.errors = []
-
-    def syntaxError(self, _recognizer, _offendingSymbol, line, column, msg, _e):
-        """Called when a syntax error is recognized."""
-        error_msg = f"Line {line}:{column} {msg}"
-        self.errors.append(error_msg)
-        raise ValueError(" | ".join(self.errors))

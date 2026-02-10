@@ -1,7 +1,0 @@
-fastmcp < 3
-wcs
-wcps
-netCDF4
-Pillow
-requests
-antlr4-python3-runtime

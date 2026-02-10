@@ -12,7 +12,7 @@ from typing import Any
 import requests
 from fastmcp import FastMCP
 
-from .rasdaman_actions import RasdamanActions
+from src.rasdaman_actions import RasdamanActions
 
 LOGGING_FORMAT = "%(levelname)s: %(message)s"
 DEFAULT_LOG_LEVEL = "INFO"
@@ -147,9 +147,8 @@ def create_mcp_app(rasdaman_url, rasdaman_username, rasdaman_password, log_level
     @mcp.tool()
     def validate_wcps_query(wcps_query: str) -> str:
         """
-        Validates the syntax of a WCPS query without executing it.
         Use this to check if your WCPS query is syntactically correct before execution.
-        Returns "VALID" if the query syntax is correct, or "INVALID SYNTAX: <error message>" if there are syntax errors.
+        Returns "VALID" if the query syntax is correct, or "INVALID SYNTAX: <error message>" otherwise.
         """
         return ras_actions.validate_wcps_query_action(wcps_query)
 
