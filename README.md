@@ -9,27 +9,11 @@ By exposing rasdaman functionality as tools via the MCP protocol, an LLM can que
 
 The MCP server translates these tool calls into actual WCS/WCPS queries that rasdaman can understand and then returns the results to the LLM.
 
-## Setup
+## Installation
 
-1.  **Create a virtual environment** (if you don't have one):
-    ```bash
-    uv venv
-    ```
-
-2.  **Activate the virtual environment**:
-    ```bash
-    source .venv/bin/activate
-    ```
-
-3.  **Install from source**
-    ```bash
-    uv pip install -e .
-    ```
-
-4.  **Deactivate the virtual environment** when done:
-    ```bash
-    deactivate
-    ```
+```bash
+pip install rasdaman-mcp
+```
 
 ## Usage
 
@@ -87,6 +71,29 @@ Benefits:
 
 ## Development
 
+### Setup
+
+1. Clone the [git repository](https://github.com/rasdaman/rasdaman-mcp):
+   ```bash
+   git clone https://github.com/rasdaman/rasdaman-mcp.git
+   cd rasdaman-mcp/
+   ```
+
+2. Create a virtual environment (if you don't have one):
+   ```bash
+   uv venv
+   ```
+
+3. Activate the virtual environment:
+   ```bash
+   source .venv/bin/activate
+   ```
+
+4. Install from source:
+   ```bash
+   uv pip install -e .
+   ```
+
 ### Core Components
 
 - Main Application (`main.py`): This script initializes the FastMCP application. It handles command-line arguments for transport selection, rasdaman URL,
@@ -110,13 +117,27 @@ The following methods are exposed as tools:
 To build the documentation:
 
 ```bash
-uv pip install -e '.[docs]'
-uv run sphinx-build docs docs/_build
+# install dependencies
+uv pip install '.[docs]'
+
+sphinx-build docs docs/_build
+```
+
+You can then open `docs/_build/index.html` in the browser.
+
+### Automated Tests
+
+To run the tests:
+
+```bash
+# install dependencies
+uv pip install '.[tests]'
+
+pytest
 ```
 
 
-
-### Testing
+### Manual Testing
 
 Interacting with the standalone HTTP server *manually* requires a specific 3-step process using `curl`.
 The `fastmcp` protocol is stateful and requires a session to be explicitly initialized.

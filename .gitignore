@@ -5,3 +5,4 @@ _build/
 uv.lock
 *.egg-info/
 dist/
+build/
