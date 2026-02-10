@@ -105,6 +105,17 @@ The following methods are exposed as tools:
 - `validate_wcps_query(wcps_query)`: Validates the syntax of a WCPS query without executing it.
 - `execute_wcps_query(wcps_query)`: Executes a raw WCPS query and returns a result either directly as a string (scalars or small json), or as a filepath.
 
+### Documentation
+
+To build the documentation:
+
+```bash
+uv pip install -e '.[docs]'
+uv run sphinx-build docs docs/_build
+```
+
+
+
 ### Testing
 
 Interacting with the standalone HTTP server *manually* requires a specific 3-step process using `curl`.
@@ -112,57 +123,60 @@ The `fastmcp` protocol is stateful and requires a session to be explicitly initi
 
 1. First, send an `initialize` request. This will return a `200 OK` response and, most importantly, 
    a session ID in the `mcp-session-id` response header (needed in the next steps).
-```bash
-curl -i -X POST \
--H "Accept: text/event-stream, application/json" \
--H "Content-Type: application/json" \
--d '{
-      "jsonrpc": "2.0",
-      "method": "initialize",
-      "params": {
-        "protocolVersion": "2024-11-05",
-        "capabilities": {},
-        "clientInfo": { "name": "curl-client", "version": "1.0.0" }
-      },
-      "id": 1
-    }' \
-"http://127.0.0.1:8000/mcp"
-```
+
+    ```bash
+    curl -i -X POST \
+    -H "Accept: text/event-stream, application/json" \
+    -H "Content-Type: application/json" \
+    -d '{
+          "jsonrpc": "2.0",
+          "method": "initialize",
+          "params": {
+            "protocolVersion": "2024-11-05",
+            "capabilities": {},
+            "clientInfo": { "name": "curl-client", "version": "1.0.0" }
+          },
+          "id": 1
+        }' \
+    "http://127.0.0.1:8000/mcp"
+    ```
 
 2. Next, send a notification to the server to confirm the session is ready. Use the session ID from Step 1 in the `mcp-session-id` header. 
    This request will not produce a body in the response.
-```bash
-SESSION_ID="<YOUR_SESSION_ID>"
 
-curl -X POST \
--H "Accept: text/event-stream, application/json" \
--H "Content-Type: application/json" \
--H "Mcp-Session-Id: $SESSION_ID" \
--d '{
-      "jsonrpc": "2.0",
-      "method": "notifications/initialized"
-    }' \
-"http://127.0.0.1:8000/mcp"
-```
+    ```bash
+    SESSION_ID="<YOUR_SESSION_ID>"
+    
+    curl -X POST \
+    -H "Accept: text/event-stream, application/json" \
+    -H "Content-Type: application/json" \
+    -H "Mcp-Session-Id: $SESSION_ID" \
+    -d '{
+          "jsonrpc": "2.0",
+          "method": "notifications/initialized"
+        }' \
+    "http://127.0.0.1:8000/mcp"
+    ```
 
 3. Finally, you can call a tool using the `tools/call` method. The `params` object must contain the `name` of the tool and 
    an `arguments` object with the parameters for that tool. The server will respond with the result of the tool call in a JSON-RPC response.
-```bash
-SESSION_ID="<YOUR_SESSION_ID>"
-
-# Example: Calling the 'list_coverages' tool
-curl -X POST \
--H "Accept: text/event-stream, application/json" \
--H "Content-Type: application/json" \
--H "Mcp-Session-Id: $SESSION_ID" \
--d '{
-      "jsonrpc": "2.0",
-      "method": "tools/call",
-      "params": {
-        "name": "list_coverages",
-        "arguments": {}
-      },
-      "id": 2
-    }' \
-"http://127.0.0.1:8000/mcp"
-```
+    
+    ```bash
+    SESSION_ID="<YOUR_SESSION_ID>"
+    
+    # Example: Calling the 'list_coverages' tool
+    curl -X POST \
+    -H "Accept: text/event-stream, application/json" \
+    -H "Content-Type: application/json" \
+    -H "Mcp-Session-Id: $SESSION_ID" \
+    -d '{
+          "jsonrpc": "2.0",
+          "method": "tools/call",
+          "params": {
+            "name": "list_coverages",
+            "arguments": {}
+          },
+          "id": 2
+        }' \
+    "http://127.0.0.1:8000/mcp"
+    ```

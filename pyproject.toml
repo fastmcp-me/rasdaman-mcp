@@ -46,7 +46,6 @@ Issues = "https://github.com/rasdaman/rasdaman-mcp/issues"
 
 [project.optional-dependencies]
 docs = [
-    "sphinx-autoapi",  # Sphinx AutoAPI for documentation
     "sphinx",
     "recommonmark",    # Allows to directly include the README.md
 ]
