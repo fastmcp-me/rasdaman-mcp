@@ -96,7 +96,7 @@ Benefits:
 - WCPS crash course (`wcps_crash_course.py`): A short summary of the syntax of WCPS, allowing LLMs to generate more accurate queries.
 - WCPS query validation (`query_validator.py`): Throws a `SyntaxError` if a WCPS query has invalid syntax, allowing LLMs to locally validate query syntax. 
 
-### 3. Defined Tools
+### Defined Tools
 
 The following methods are exposed as tools:
 - `list_coverages()`: Lists all available datacubes.
